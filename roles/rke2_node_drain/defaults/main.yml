@@ -1,0 +1,14 @@
+---
+# defaults file for rke2_node_drain
+
+# Drain timeout in seconds
+drain_timeout: 300
+
+# Drain grace period in seconds
+drain_grace_period: 30
+
+# Whether to ignore daemonsets during drain
+drain_ignore_daemonsets: true
+
+# Whether to force drain
+drain_force: true

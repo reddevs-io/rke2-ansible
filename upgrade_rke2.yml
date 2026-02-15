@@ -1,0 +1,103 @@
+---
+# RKE2 Kubernetes Cluster Upgrade Playbook
+# Upgrades server nodes first (sequentially), then agent nodes (sequentially)
+
+- name: Upgrade RKE2 Server Nodes
+  hosts: rke2_servers
+  become: true
+  serial: 1
+  vars:
+    # Common configurable variables
+    drain_timeout: 300
+    drain_grace_period: 30
+    health_check_retries: 30
+    health_check_interval: 10
+    service_start_timeout: 300
+    rke2_version: ""  # Leave empty for latest, or specify version (e.g., "v1.28.4+rke2r1")
+    rke2_type: server
+
+  tasks:
+    - name: Prepare system
+      include_role:
+        name: rke2_prepare
+
+    - name: Check RKE2 version
+      include_role:
+        name: rke2_version_check
+
+    - name: Drain node
+      include_role:
+        name: rke2_node_drain
+
+    - name: Install RKE2
+      include_role:
+        name: rke2_install
+
+    - name: Restore node
+      include_role:
+        name: rke2_node_restore
+
+
+- name: Upgrade RKE2 Agent Nodes
+  hosts: rke2_agents
+  become: true
+  serial: 1
+  vars:
+    # Common configurable variables
+    drain_timeout: 300
+    drain_grace_period: 30
+    health_check_retries: 30
+    health_check_interval: 10
+    service_start_timeout: 300
+    rke2_version: ""  # Leave empty for latest, or specify version (e.g., "v1.28.4+rke2r1")
+    rke2_type: agent
+
+  tasks:
+    - name: Prepare system
+      include_role:
+        name: rke2_prepare
+
+    - name: Check RKE2 version
+      include_role:
+        name: rke2_version_check
+
+    - name: Drain node
+      include_role:
+        name: rke2_node_drain
+
+    - name: Install RKE2
+      include_role:
+        name: rke2_install
+
+    - name: Restore node
+      include_role:
+        name: rke2_node_restore
+
+
+- name: Post-Upgrade Verification
+  hosts: localhost
+  become: false
+  gather_facts: false
+  tasks:
+    - name: Get cluster nodes status
+      command: kubectl get nodes -o wide
+      register: nodes_status
+      changed_when: false
+
+    - name: Display cluster nodes status
+      debug:
+        var: nodes_status.stdout_lines
+
+    - name: Verify all nodes are Ready
+      shell: kubectl get nodes -o jsonpath='{.items[*].status.conditions[?(@.type=="Ready")].status}'
+      register: all_ready
+      changed_when: false
+
+    - name: Fail if any node is not Ready
+      fail:
+        msg: "One or more nodes are not in Ready state"
+      when: "'False' in all_ready.stdout"
+
+    - name: Display upgrade complete message
+      debug:
+        msg: "RKE2 cluster upgrade completed successfully!"

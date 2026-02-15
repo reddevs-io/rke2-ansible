@@ -1,0 +1,11 @@
+---
+# defaults file for rke2_version_check
+
+# RKE2 type (server or agent)
+rke2_type: server
+
+# Target RKE2 version (empty for latest)
+rke2_version: ""
+
+# GitHub API URL for RKE2 releases
+rke2_github_api_url: "https://api.github.com/repos/rancher/rke2/releases/latest"

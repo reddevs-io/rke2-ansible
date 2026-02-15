@@ -1,0 +1,31 @@
+---
+# tasks file for rke2_install
+
+- name: Download and install RKE2 update
+  shell: |
+    curl -sfL {{ rke2_install_url }} | sudo INSTALL_RKE2_CHANNEL={{ rke2_channel }} sh -
+  environment:
+    INSTALL_RKE2_TYPE: "{{ rke2_type }}"
+    INSTALL_RKE2_VERSION: "{{ rke2_target_version if rke2_target_version else omit }}"
+  register: install_result
+  changed_when: "'RKE2 installed' in install_result.stdout or install_result.rc == 0"
+  when: not (rke2_skip_upgrade | default(false))
+
+- name: Restart RKE2 {{ rke2_type }} service
+  systemd:
+    name: rke2-{{ rke2_type }}
+    state: restarted
+    daemon_reload: true
+  register: restart_result
+  when: not (rke2_skip_upgrade | default(false))
+
+- name: Wait for RKE2 {{ rke2_type }} service to be active
+  shell: systemctl is-active rke2-{{ rke2_type }}
+  register: service_status
+  until: service_status.stdout == 'active'
+  retries: "{{ service_check_retries }}"
+  delay: "{{ service_check_delay }}"
+  changed_when: false
+  when:
+    - not (rke2_skip_upgrade | default(false))
+    - restart_result.changed

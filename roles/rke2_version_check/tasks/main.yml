@@ -1,0 +1,113 @@
+---
+# tasks file for rke2_version_check
+
+- name: Check if RKE2 {{ rke2_type }} service exists (primary location)
+  stat:
+    path: /usr/local/lib/systemd/system/rke2-{{ rke2_type }}.service
+  register: rke2_service_primary
+
+- name: Check if RKE2 {{ rke2_type }} service exists (alternative location)
+  stat:
+    path: /usr/local/lib/systemd/system/rke2-{{ rke2_type }}.service
+  register: rke2_service_alt
+  when: not rke2_service_primary.stat.exists
+
+- name: Set service exists fact
+  set_fact:
+    rke2_service_exists: "{{ rke2_service_primary.stat.exists or (rke2_service_alt.stat.exists | default(false)) }}"
+
+- name: Fail if RKE2 {{ rke2_type }} service not found
+  fail:
+    msg: "RKE2 {{ rke2_type }} service not found on {{ node_name }}. Is this a {{ rke2_type }} node?"
+  when: not rke2_service_exists
+
+# Version Check Block
+- name: Detect installed RKE2 version (primary location)
+  shell: /usr/local/bin/rke2 --version 2>/dev/null | head -1 | awk '{print $3}'
+  register: rke2_installed_version_raw
+  changed_when: false
+  failed_when: false
+
+- name: Detect installed RKE2 version (alternative location)
+  shell: /var/lib/rancher/rke2/bin/rke2 --version 2>/dev/null | head -1 | awk '{print $3}'
+  register: rke2_installed_version_alt_raw
+  changed_when: false
+  failed_when: false
+  when: rke2_installed_version_raw.rc != 0 or rke2_installed_version_raw.stdout == ""
+
+- name: Set installed version fact
+  set_fact:
+    rke2_installed_version: "{{ rke2_installed_version_raw.stdout if (rke2_installed_version_raw.rc == 0 and rke2_installed_version_raw.stdout != '') else (rke2_installed_version_alt_raw.stdout | default('')) }}"
+
+- name: Query latest available RKE2 version
+  shell: curl -s {{ rke2_github_api_url }} | jq -r '.tag_name'
+  register: rke2_latest_version_raw
+  changed_when: false
+  failed_when: false
+  delegate_to: localhost
+  become: false
+  when: rke2_version == ""
+
+- name: Debug latest version query result
+  debug:
+    msg: |
+      Latest version query result:
+        Task skipped: {{ rke2_latest_version_raw is skipped | default(false) }}
+        Return code: {{ rke2_latest_version_raw.rc | default('N/A') }}
+        Stdout: {{ rke2_latest_version_raw.stdout | default('N/A') }}
+        Stderr: {{ rke2_latest_version_raw.stderr | default('N/A') }}
+
+- name: Set target RKE2 version fact
+  set_fact:
+    rke2_target_version: >-
+      {%- if rke2_version != '' -%}
+      {{ rke2_version }}
+      {%- elif rke2_latest_version_raw is defined and not (rke2_latest_version_raw is skipped) and rke2_latest_version_raw.rc == 0 and rke2_latest_version_raw.stdout != '' -%}
+      {{ rke2_latest_version_raw.stdout }}
+      {%- else -%}
+      {%- endif -%}
+
+- name: Check for version detection failure
+  set_fact:
+    rke2_version_check_failed: "{{ rke2_installed_version == '' or rke2_target_version == '' }}"
+
+- name: Compare versions and set skip flag
+  set_fact:
+    rke2_skip_upgrade: true
+    rke2_skip_reason: "Installed version ({{ rke2_installed_version }}) matches target version ({{ rke2_target_version }})"
+  when:
+    - not rke2_version_check_failed
+    - rke2_installed_version == rke2_target_version
+
+- name: Set skip to false when versions differ
+  set_fact:
+    rke2_skip_upgrade: false
+    rke2_skip_reason: ""
+  when:
+    - not rke2_version_check_failed
+    - rke2_installed_version != rke2_target_version
+
+- name: Handle version check failure
+  set_fact:
+    rke2_skip_upgrade: false
+    rke2_skip_reason: "Version detection failed, proceeding with upgrade as fail-safe"
+  when: rke2_version_check_failed
+
+- name: Display version check results
+  debug:
+    msg: |
+      Version Check Results:
+        Installed: {{ rke2_installed_version | default('unknown') }}
+        Target: {{ rke2_target_version | default('unknown') }}
+        Skip Upgrade: {{ rke2_skip_upgrade | default(false) }}
+        Reason: {{ rke2_skip_reason | default('N/A') }}
+
+- name: Display skip message
+  debug:
+    msg: "Skipping upgrade for {{ rke2_type }} node {{ node_name }} - already at target version {{ rke2_target_version }}"
+  when: rke2_skip_upgrade | default(false)
+
+- name: Display proceed message
+  debug:
+    msg: "Proceeding with upgrade for {{ rke2_type }} node {{ node_name }}: {{ rke2_installed_version }} -> {{ rke2_target_version }}"
+  when: not (rke2_skip_upgrade | default(false))

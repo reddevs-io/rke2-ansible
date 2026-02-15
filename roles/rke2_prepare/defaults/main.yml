@@ -1,0 +1,15 @@
+---
+# defaults file for rke2_prepare
+
+# Apt cache validity time in seconds
+apt_cache_valid_time: 3600
+
+# Reboot settings
+reboot_timeout: 600
+reboot_connect_timeout: 5
+reboot_pre_delay: 0
+reboot_post_delay: 30
+
+# Wait for connection settings after reboot
+wait_for_connection_delay: 10
+wait_for_connection_timeout: 300

@@ -1,0 +1,23 @@
+---
+# defaults file for rke2_install
+
+# RKE2 type (server or agent)
+rke2_type: server
+
+# RKE2 installation channel
+rke2_channel: latest
+
+# RKE2 installation script URL
+rke2_install_url: "https://get.rke2.io"
+
+# Target RKE2 version (empty for latest)
+rke2_version: ""
+
+# Service start timeout
+service_start_timeout: 300
+
+# Service status check retries
+service_check_retries: 20
+
+# Service status check delay
+service_check_delay: 15

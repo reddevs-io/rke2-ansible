@@ -1,0 +1,38 @@
+---
+# tasks file for rke2_node_restore
+
+- name: Wait for node to be Ready
+  shell: >
+    kubectl get nodes {{ inventory_hostname }} -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}'
+  delegate_to: localhost
+  become: false
+  register: node_ready
+  until: node_ready.stdout == "True"
+  retries: "{{ health_check_retries }}"
+  delay: "{{ health_check_interval }}"
+  changed_when: false
+  when: not (rke2_skip_upgrade | default(false))
+
+- name: Wait for all pods to be running on the node
+  shell: >
+    kubectl get pods --field-selector spec.nodeName={{ inventory_hostname }} -o jsonpath='{.items[*].status.phase}'
+  delegate_to: localhost
+  become: false
+  register: pod_phases
+  until: "'Failed' not in pod_phases.stdout"
+  retries: "{{ health_check_retries }}"
+  delay: "{{ health_check_interval }}"
+  changed_when: false
+  when: not (rke2_skip_upgrade | default(false))
+
+- name: Uncordon node
+  command: kubectl uncordon {{ inventory_hostname }}
+  delegate_to: localhost
+  become: false
+  register: uncordon_result
+  changed_when: "'uncordoned' in uncordon_result.stdout"
+  when: not (rke2_skip_upgrade | default(false))
+
+- name: Display upgrade complete message
+  debug:
+    msg: "Upgrade completed for {{ rke2_type }} node: {{ node_name }}"

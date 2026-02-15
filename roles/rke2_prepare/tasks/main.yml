@@ -1,0 +1,41 @@
+---
+# tasks file for rke2_prepare
+
+- name: Get current node name
+  command: hostname
+  register: current_hostname
+  changed_when: false
+
+- name: Set node name fact
+  set_fact:
+    node_name: "{{ current_hostname.stdout }}"
+
+- name: Display upgrade start message
+  debug:
+    msg: "Starting upgrade for {{ rke2_type }} node: {{ node_name }}"
+
+- name: Update apt cache
+  apt:
+    update_cache: yes
+    cache_valid_time: "{{ apt_cache_valid_time }}"
+
+- name: Upgrade all packages
+  apt:
+    upgrade: dist
+    autoremove: yes
+
+- name: Reboot system if required
+  reboot:
+    msg: "Rebooting system after package upgrade"
+    connect_timeout: "{{ reboot_connect_timeout }}"
+    reboot_timeout: "{{ reboot_timeout }}"
+    pre_reboot_delay: "{{ reboot_pre_delay }}"
+    post_reboot_delay: "{{ reboot_post_delay }}"
+    test_command: uptime
+  register: reboot_result
+
+- name: Wait for system to stabilize after reboot
+  wait_for_connection:
+    delay: "{{ wait_for_connection_delay }}"
+    timeout: "{{ wait_for_connection_timeout }}"
+  when: reboot_result.rebooted

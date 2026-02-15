@@ -1,0 +1,8 @@
+---
+# defaults file for rke2_node_restore
+
+# Health check retries
+health_check_retries: 30
+
+# Health check interval in seconds
+health_check_interval: 10

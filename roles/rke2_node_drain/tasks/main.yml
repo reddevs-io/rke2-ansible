@@ -1,0 +1,29 @@
+---
+# tasks file for rke2_node_drain
+
+- name: Cordon node
+  command: kubectl cordon {{ inventory_hostname }}
+  delegate_to: localhost
+  become: false
+  register: cordon_result
+  changed_when: "'cordoned' in cordon_result.stdout"
+  when: not (rke2_skip_upgrade | default(false))
+
+- name: Drain node
+  command: >
+    kubectl drain {{ inventory_hostname }} --ignore-daemonsets --force --delete-emptydir-data
+    --timeout={{ drain_timeout }}s --grace-period={{ drain_grace_period }}
+  delegate_to: localhost
+  become: false
+  register: drain_result
+  changed_when: true
+  ignore_errors: true
+  when: not (rke2_skip_upgrade | default(false))
+
+- name: Check drain result
+  fail:
+    msg: "Failed to drain node {{ inventory_hostname }}: {{ drain_result.stderr }}"
+  when:
+    - not (rke2_skip_upgrade | default(false))
+    - drain_result.rc != 0
+    - "'cannot delete DaemonSet-managed Pods' not in drain_result.stderr"
