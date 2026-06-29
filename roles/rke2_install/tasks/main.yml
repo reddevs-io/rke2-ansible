@@ -11,18 +11,45 @@
   changed_when: "'RKE2 installed' in install_result.stdout or install_result.rc == 0"
   when: not (rke2_skip_upgrade | default(false))
 
-- name: Restart RKE2 {{ rke2_type }} service
+- name: Reload systemd daemon
   systemd:
-    name: rke2-{{ rke2_type }}
-    state: restarted
     daemon_reload: true
+  when: not (rke2_skip_upgrade | default(false))
+
+- name: Restart RKE2 {{ rke2_type }} service (non-blocking)
+  # systemctl restart blocks until the unit sends READY=1 (Type=notify).
+  # For rke2-agent this can take several minutes on first join, causing Ansible
+  # to hang here indefinitely.  --no-block enqueues the restart job and returns
+  # immediately; the next task polls for readiness with configurable retries.
+  shell: systemctl restart rke2-{{ rke2_type }} --no-block
+  changed_when: true
   register: restart_result
   when: not (rke2_skip_upgrade | default(false))
 
-- name: Wait for RKE2 {{ rke2_type }} service to be active
-  shell: systemctl is-active rke2-{{ rke2_type }}
+- name: Wait for RKE2 {{ rke2_type }} service process to be running
+  # rke2 uses Type=notify: systemd only marks the unit "active" after rke2 sends
+  # READY=1, which can be delayed (or blocked) by slow cluster-side operations
+  # such as admission webhooks failing on node annotation updates.
+  # The processes (kubelet, containerd) will already be running long before that
+  # signal arrives, so check MainPID liveness instead of full "active" state to
+  # avoid exhausting retries on a service that is functionally running.
+  # The definitive readiness check (node "Ready" in the cluster) is done by the
+  # caller playbook via kubectl.
+  shell: |
+    active=$(systemctl show rke2-{{ rke2_type }} --property=ActiveState --value)
+    pid=$(systemctl show rke2-{{ rke2_type }} --property=MainPID --value)
+    if [ "$active" = "failed" ] || [ "$active" = "inactive" ]; then
+      echo "Service is in state: $active" >&2
+      exit 1
+    fi
+    if [ -n "$pid" ] && [ "$pid" != "0" ] && kill -0 "$pid" 2>/dev/null; then
+      echo "running (active=$active, pid=$pid)"
+      exit 0
+    fi
+    echo "Service not yet running (active=$active, pid=$pid)" >&2
+    exit 1
   register: service_status
-  until: service_status.stdout == 'active'
+  until: service_status.rc == 0
   retries: "{{ service_check_retries }}"
   delay: "{{ service_check_delay }}"
   changed_when: false

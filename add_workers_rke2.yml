@@ -1,0 +1,206 @@
+---
+# Add RKE2 Worker Nodes to an Existing Cluster
+# Joins hosts in the rke2_new_agents inventory group as RKE2 agents.
+# Requires: -e "rke2_token=K10...::server:..." -e "rke2_server_url=https://<server>:9345"
+
+- name: Preflight Checks
+  hosts: localhost
+  become: false
+  gather_facts: false
+  tasks:
+    # Resolve rke2_token / rke2_server_url from inventory hostvars when the
+    # caller did not pass them as extra-vars (-e).  The preflight play runs on
+    # localhost which is not in any inventory group, so group_vars / host_vars
+    # scoped to rke2_cluster are only reachable via hostvars[<cluster-host>].
+    - name: Resolve rke2_token from inventory hostvars (fallback)
+      set_fact:
+        rke2_token: "{{ hostvars[(groups['rke2_new_agents'] | default([]) | first)]['rke2_token'] }}"
+      when:
+        - rke2_token is not defined
+        - groups['rke2_new_agents'] | default([]) | length > 0
+        - hostvars[(groups['rke2_new_agents'] | first)]['rke2_token'] is defined
+
+    - name: Resolve rke2_server_url from inventory hostvars (fallback)
+      set_fact:
+        rke2_server_url: "{{ hostvars[(groups['rke2_new_agents'] | default([]) | first)]['rke2_server_url'] }}"
+      when:
+        - rke2_server_url is not defined
+        - groups['rke2_new_agents'] | default([]) | length > 0
+        - hostvars[(groups['rke2_new_agents'] | first)]['rke2_server_url'] is defined
+
+    - name: Validate rke2_token is provided
+      assert:
+        that:
+          - rke2_token is defined
+          - rke2_token | length > 0
+        fail_msg: >-
+          rke2_token is required. Obtain it from any server node:
+            sudo cat /var/lib/rancher/rke2/server/node-token
+          Then pass: -e "rke2_token=K10...::server:..."
+        quiet: true
+
+    - name: Validate rke2_server_url is provided
+      assert:
+        that:
+          - rke2_server_url is defined
+          - rke2_server_url | length > 0
+          - rke2_server_url.startswith('https://')
+        fail_msg: >-
+          rke2_server_url is required and must start with https://.
+          Example: -e "rke2_server_url=https://192.168.1.10:9345"
+        quiet: true
+
+    - name: Validate rke2_new_agents group is populated
+      assert:
+        that:
+          - groups['rke2_new_agents'] is defined
+          - groups['rke2_new_agents'] | length > 0
+        fail_msg: >-
+          No hosts found in the rke2_new_agents inventory group.
+          Add new worker nodes to this group before running the playbook.
+        quiet: true
+
+    - name: Validate rke2_servers group is populated
+      assert:
+        that:
+          - groups['rke2_servers'] is defined
+          - groups['rke2_servers'] | length > 0
+        fail_msg: >-
+          No hosts found in the rke2_servers inventory group.
+          At least one server is required for version detection.
+        quiet: true
+
+    - name: Check kubectl availability
+      command: kubectl version --client
+      register: kubectl_check
+      changed_when: false
+      failed_when: false
+      run_once: true
+
+    - name: Warn if kubectl is not available
+      debug:
+        msg: >-
+          WARNING: kubectl not found on the control node.
+          Post-join verification will be skipped.
+      when: kubectl_check.rc != 0
+
+
+- name: Detect RKE2 Version from Existing Servers
+  hosts: "{{ groups['rke2_servers'][0] }}"
+  become: true
+  gather_facts: false
+  any_errors_fatal: true
+  tasks:
+    - name: Detect installed RKE2 version (primary location)
+      shell: /usr/local/bin/rke2 --version 2>/dev/null | head -1 | awk '{print $3}'
+      register: rke2_installed_version_raw
+      changed_when: false
+      failed_when: false
+
+    - name: Detect installed RKE2 version (alternative location)
+      shell: /var/lib/rancher/rke2/bin/rke2 --version 2>/dev/null | head -1 | awk '{print $3}'
+      register: rke2_installed_version_alt_raw
+      changed_when: false
+      failed_when: false
+      when: rke2_installed_version_raw.rc != 0 or rke2_installed_version_raw.stdout == ""
+
+    - name: Set detected version fact
+      set_fact:
+        rke2_detected_version: >-
+          {{ rke2_installed_version_raw.stdout if (rke2_installed_version_raw.rc == 0 and rke2_installed_version_raw.stdout != '') else (rke2_installed_version_alt_raw.stdout | default('')) }}
+
+    - name: Fail if version detection failed
+      fail:
+        msg: >-
+          Could not detect the RKE2 version on {{ inventory_hostname }}.
+          Ensure the rke2_servers host is a healthy server node.
+      when: rke2_detected_version == ""
+
+    - name: Display detected version
+      debug:
+        msg: "Detected RKE2 version on servers: {{ rke2_detected_version }}"
+
+    - name: Propagate target version to new agent hosts
+      add_host:
+        name: "{{ item }}"
+        groups: rke2_new_agents
+        rke2_target_version: "{{ rke2_detected_version }}"
+      loop: "{{ groups['rke2_new_agents'] }}"
+
+
+- name: Join RKE2 Worker Nodes
+  hosts: rke2_new_agents
+  become: true
+  serial: 1
+  any_errors_fatal: true
+  vars:
+    rke2_type: agent
+    # rke2_target_version is set per-host by Play 2 (add_host from server version detection)
+    # Do not set rke2_version here; rke2_install consumes rke2_target_version directly
+    rke2_skip_upgrade: false
+    health_check_retries: 30
+    health_check_interval: 10
+    apt_cache_valid_time: 3600
+    reboot_timeout: 600
+    reboot_connect_timeout: 5
+    reboot_pre_delay: 0
+    reboot_post_delay: 30
+    wait_for_connection_delay: 10
+    wait_for_connection_timeout: 300
+    rke2_channel: latest
+    rke2_install_url: "https://get.rke2.io"
+    service_check_retries: 20
+    service_check_delay: 15
+
+  tasks:
+    - name: Prepare system
+      include_role:
+        name: rke2_prepare
+
+    - name: Write agent join configuration
+      include_role:
+        name: rke2_agent_join
+
+    - name: Install RKE2 agent
+      include_role:
+        name: rke2_install
+
+    - name: Ensure rke2-agent service is enabled at boot
+      systemd:
+        name: rke2-agent
+        enabled: true
+
+    - name: Check kubectl availability for post-join verification
+      command: kubectl version --client
+      register: kubectl_available
+      delegate_to: localhost
+      become: false
+      changed_when: false
+      failed_when: false
+
+    - name: Wait for node to be Ready
+      shell: >
+        kubectl get nodes {{ inventory_hostname }} -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}'
+      delegate_to: localhost
+      become: false
+      register: node_ready
+      until: node_ready.stdout == "True"
+      retries: "{{ health_check_retries }}"
+      delay: "{{ health_check_interval }}"
+      changed_when: false
+      when: kubectl_available.rc == 0
+
+    - name: Display join success message
+      debug:
+        msg: >-
+          Worker node {{ inventory_hostname }} joined the cluster successfully
+          (RKE2 {{ rke2_target_version }}).
+          Remember to move this host from rke2_new_agents to rke2_agents in your inventory.
+
+    - name: Warn about skipped verification
+      debug:
+        msg: >-
+          WARNING: kubectl not available on the control node.
+          Post-join verification was skipped. Manually verify with:
+            kubectl get nodes
+      when: kubectl_available.rc != 0

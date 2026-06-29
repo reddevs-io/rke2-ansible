@@ -26,6 +26,12 @@ all:
               ansible_host: 192.168.1.21
             rke2-agent-03:
               ansible_host: 192.168.1.22
+        rke2_new_agents:
+          hosts:
+            # New worker nodes to join the cluster.
+            # Move them under rke2_agents after a successful join.
+            # rke2-new-worker-01:
+            #   ansible_host: 192.168.1.30
       vars:
         # Common variables for all RKE2 nodes
         ansible_user: rke2admin

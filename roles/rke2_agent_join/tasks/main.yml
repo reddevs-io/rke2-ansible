@@ -1,0 +1,27 @@
+---
+- name: Validate required variables
+  assert:
+    that:
+      - rke2_token | length > 0
+      - rke2_server_url | length > 0
+    fail_msg: >-
+      Both rke2_token and rke2_server_url must be provided.
+      Pass them via extra-vars: -e "rke2_token=K10...::server:..."
+      -e "rke2_server_url=https://<server-or-vip>:9345"
+    quiet: true
+
+- name: Ensure RKE2 config directory exists
+  file:
+    path: "{{ rke2_config_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: Write RKE2 agent config
+  copy:
+    dest: "{{ rke2_config_file }}"
+    content: |
+      server: "{{ rke2_server_url }}"
+      token: "{{ rke2_token }}"
+    mode: "0600"
+    owner: root
+    group: root

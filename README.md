@@ -326,9 +326,111 @@ For each agent node, the same steps apply, but:
 - **Graceful drain**: Uses appropriate timeouts and grace periods
 - **System preparation**: Ensures OS is up-to-date before RKE2 upgrade
 
+## Adding Worker Nodes
+
+The `add_workers_rke2.yml` playbook joins fresh nodes to an existing RKE2 cluster as agent (worker) nodes. It does not modify any existing server or agent nodes.
+
+### Prerequisites
+
+- A healthy RKE2 cluster with at least one reachable `rke2_servers` host
+- The join token from any server node:
+  ```bash
+  sudo cat /var/lib/rancher/rke2/server/node-token
+  ```
+- The server URL (typically `https://<server-ip-or-vip>:9345`)
+- New worker nodes listed under the `rke2_new_agents` inventory group
+- kubectl installed on the control node (optional; post-join verification is skipped gracefully if unavailable)
+
+### Required Extra-Vars
+
+| Variable | Description |
+|----------|-------------|
+| `rke2_token` | Join token obtained from an existing server node |
+| `rke2_server_url` | URL of the RKE2 server, e.g. `https://192.168.1.10:9345` |
+
+### Inventory
+
+Add new worker nodes to the `rke2_new_agents` group. After a successful join, move them into `rke2_agents` so they are included in future upgrade runs.
+
+**INI format:**
+```ini
+[rke2_new_agents]
+rke2-new-worker-01 ansible_host=192.168.1.30
+```
+
+**YAML format:**
+```yaml
+rke2_new_agents:
+  hosts:
+    rke2-new-worker-01:
+      ansible_host: 192.168.1.30
+```
+
+### Usage
+
+**Using INI inventory:**
+```bash
+ansible-playbook -i inventory/hosts.ini add_workers_rke2.yml \
+  -e "rke2_server_url=https://192.168.1.10:9345" \
+  -e "rke2_token=K10abc...::server:xyz..."
+```
+
+**Using YAML inventory:**
+```bash
+ansible-playbook -i inventory/hosts.yml add_workers_rke2.yml \
+  -e "rke2_server_url=https://192.168.1.10:9345" \
+  -e "rke2_token=K10abc...::server:xyz..."
+```
+
+### Execution Flow
+
+1. **Preflight Checks** — Validate required extra-vars and inventory groups before touching any remote host
+2. **Version Detection** — Auto-detect the RKE2 version from the first `rke2_servers` host; new workers will install the same version to avoid version skew
+3. **Join Workers** — For each host in `rke2_new_agents` (one at a time):
+   - System preparation (apt update, dist-upgrade, conditional reboot)
+   - Write agent configuration (`/etc/rancher/rke2/config.yaml`) with server URL and token
+   - Install RKE2 agent binary
+   - Enable `rke2-agent` service at boot
+   - Post-join verification: wait for node to be `Ready` (skipped if kubectl is unavailable)
+
+### Configuration Variables
+
+#### Agent Join Role (`rke2_agent_join`)
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `rke2_token` | `""` | Join token (required, pass via `-e`) |
+| `rke2_server_url` | `""` | Server URL (required, pass via `-e`) |
+| `rke2_config_dir` | `/etc/rancher/rke2` | Directory for RKE2 configuration |
+| `rke2_config_file` | `/etc/rancher/rke2/config.yaml` | Path to the agent config file |
+
+All variables from the `rke2_prepare` and `rke2_install` roles also apply (see [Configuration Variables](#configuration-variables) above).
+
+### Post-Join Step
+
+After a successful join, move the host from `rke2_new_agents` to `rke2_agents` in your inventory so it is included in future upgrade runs.
+
 ## Troubleshooting
 
 ### Common Issues
+
+#### Adding Worker Nodes — Token Mismatch
+
+If you see `failed to validate token` in `journalctl -u rke2-agent`, verify the token matches the value on a server:
+```bash
+sudo cat /var/lib/rancher/rke2/server/node-token
+```
+
+#### Adding Worker Nodes — Firewall
+
+Ensure TCP ports 9345 (supervisor) and 6443 (kube-api) are reachable from the new worker to the servers.
+
+#### Adding Worker Nodes — Node Stuck NotReady
+
+Check the agent logs:
+```bash
+journalctl -u rke2-agent -f
+```
 
 #### Drain Timeout
 
@@ -421,11 +523,17 @@ ansible-playbook -i inventory/hosts.yml upgrade_rke2.yml -vvv
 ```
 .
 ├── README.md                         # This documentation
+├── add_workers_rke2.yml              # Playbook to add worker nodes to an existing cluster
 ├── upgrade_rke2.yml                  # Main playbook
 ├── inventory/
 │   ├── example_hosts.ini             # Example INI inventory
 │   └── example_hosts.yml             # Example YAML inventory
 └── roles/
+    ├── rke2_agent_join/
+    │   ├── defaults/
+    │   │   └── main.yml              # Default variables for agent join
+    │   └── tasks/
+    │       └── main.yml              # Agent configuration and join tasks
     ├── rke2_prepare/
     │   ├── defaults/
     │   │   └── main.yml              # Default variables for system preparation
