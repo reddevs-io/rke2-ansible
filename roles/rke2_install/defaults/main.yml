@@ -13,9 +13,6 @@ rke2_install_url: "https://get.rke2.io"
 # Target RKE2 version (empty for latest)
 rke2_version: ""
 
-# Service start timeout
-service_start_timeout: 300
-
 # Service status check retries
 service_check_retries: 20
 

@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Upgrade Playbook Improvements Plan</title>
+<style>
+:root {
+  --bg: #0f1117; --surface: #1a1d2e; --surface-2: #232640;
+  --border: #2d3652; --text: #c9d1d9; --text-dim: #8b949e;
+  --blue: #4A90D9; --green: #2ECC71; --orange: #E8A838;
+  --red: #E85D4A; --purple: #7B68EE;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; max-width: 1100px; margin: 0 auto; padding: 2rem; }
+h1 { font-size: 1.75rem; font-weight: 700; margin-bottom: .25rem; }
+.meta { color: var(--text-dim); font-size: .85rem; margin-bottom: 1.5rem; }
+h2 { font-size: 1.1rem; font-weight: 600; margin: 2rem 0 .75rem; border-bottom: 1px solid var(--border); padding-bottom: .4rem; }
+h3 { font-size: .95rem; font-weight: 600; color: var(--text); margin: 1.25rem 0 .5rem; }
+h4 { font-size: .8rem; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--text-dim); margin: 1rem 0 .4rem; }
+p { font-size: .92rem; margin-bottom: .5rem; }
+ul { list-style: none; padding: 0; margin: .4rem 0; }
+ul li { padding: .35rem .75rem; margin-bottom: .25rem; background: var(--surface); border-radius: 5px; border-left: 3px solid var(--border); font-size: .9rem; }
+ul li code, p code, td code { background: var(--surface-2); padding: .1rem .35rem; border-radius: 3px; font-size: .85rem; color: var(--blue); }
+.toc { background: var(--surface); border-radius: 8px; padding: 1rem 1.25rem; margin-bottom: 1.5rem; border-left: 4px solid var(--blue); }
+.toc ol { padding-left: 1.5rem; }
+.toc li { background: transparent; border: none; padding: .15rem 0; font-size: .9rem; }
+.toc li a { color: var(--blue); text-decoration: none; }
+.toc li a:hover { text-decoration: underline; }
+.phase { background: var(--surface); border-radius: 10px; padding: 1.25rem 1.5rem; margin-bottom: 1.25rem; }
+.phase.p0 { border-left: 4px solid var(--red); }
+.phase.p1 { border-left: 4px solid var(--orange); }
+.phase.p2 { border-left: 4px solid var(--blue); }
+.phase.p3 { border-left: 4px solid var(--purple); }
+.phase-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: .75rem; }
+.phase-header h2 { margin: 0; border: none; padding: 0; font-size: 1.1rem; }
+.priority-badge { display: inline-block; padding: .2rem .7rem; border-radius: 20px; font-size: .75rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; }
+.priority-badge.p0 { background: rgba(232,93,74,.15); color: var(--red); }
+.priority-badge.p1 { background: rgba(232,168,56,.15); color: var(--orange); }
+.priority-badge.p2 { background: rgba(74,144,217,.15); color: var(--blue); }
+.priority-badge.p3 { background: rgba(123,104,238,.15); color: var(--purple); }
+.fix-card { background: var(--surface-2); border-radius: 8px; padding: 1rem 1.25rem; margin: .75rem 0; border-left: 3px solid var(--border); }
+.fix-card h3 { margin-top: 0; }
+.fix-card .fix-id { display: inline-block; font-family: monospace; font-size: .8rem; color: var(--text-dim); margin-right: .5rem; }
+.file-tag { display: inline-block; background: rgba(123,104,238,.15); color: var(--purple); padding: .15rem .55rem; border-radius: 4px; font-size: .75rem; font-family: monospace; margin: .15rem .2rem .15rem 0; }
+.severity { display: inline-block; padding: .15rem .55rem; border-radius: 4px; font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; margin-left: .5rem; }
+.severity.bug { background: rgba(232,93,74,.2); color: var(--red); }
+.severity.robust { background: rgba(232,168,56,.2); color: var(--orange); }
+.severity.quality { background: rgba(74,144,217,.2); color: var(--blue); }
+pre { background: var(--surface-2); border-radius: 6px; padding: .75rem; margin: .5rem 0; font-size: .82rem; overflow-x: auto; border-left: 2px solid var(--border); }
+pre code { background: transparent; color: var(--text); padding: 0; }
+.diff-block { background: var(--surface-2); border-radius: 6px; padding: .75rem 1rem; margin: .5rem 0; font-family: monospace; font-size: .82rem; overflow-x: auto; }
+.diff-block .before { color: var(--red); }
+.diff-block .before::before { content: '- '; }
+.diff-block .after { color: var(--green); }
+.diff-block .after::before { content: '+ '; }
+table { width: 100%; border-collapse: collapse; margin: .75rem 0; font-size: .88rem; }
+th { text-align: left; padding: .5rem .75rem; background: var(--surface-2); font-size: .78rem; text-transform: uppercase; letter-spacing: .05em; color: var(--text-dim); }
+td { padding: .5rem .75rem; border-bottom: 1px solid var(--border); }
+.callout { background: rgba(74,144,217,.08); border-left: 3px solid var(--blue); border-radius: 6px; padding: .75rem 1rem; margin: .75rem 0; font-size: .88rem; }
+.callout.warn { background: rgba(232,168,56,.08); border-left-color: var(--orange); }
+.callout strong { color: var(--text); }
+.verification-list li { border-left-color: var(--green); }
+footer { margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--border); color: var(--text-dim); font-size: .8rem; }
+</style>
+</head>
+<body>
+<h1>Upgrade Playbook Improvements Plan</h1>
+<p class="meta">Generated: 2026-06-29 10:37:14 &middot; Scope: <code>upgrade_rke2.yml</code> and supporting roles &middot; Status: Draft</p>
+
+<div class="callout">
+<strong>Summary.</strong> A code review of the RKE2 upgrade playbook surfaced 14 actionable findings after self-review. Of these, <strong>4 are correctness bugs</strong> (one of which — unconditional reboot — was missed in the first pass), <strong>6 are robustness gaps</strong> with production impact, and <strong>4 are code-quality refinements</strong>. Two original suggestions were retracted after re-reading the code. Work is sequenced into four phases so each commit is independently shippable and testable.
+</div>
+
+<div class="toc">
+<strong>Contents</strong>
+<ol>
+<li><a href="#phase-0">Phase 0 — Critical Bugs (P0)</a></li>
+<li><a href="#phase-1">Phase 1 — Robustness &amp; Safety (P1)</a></li>
+<li><a href="#phase-2">Phase 2 — Hygiene &amp; Dependencies (P2)</a></li>
+<li><a href="#phase-3">Phase 3 — Polish (P3)</a></li>
+<li><a href="#sequencing">Commit Sequencing &amp; Verification</a></li>
+<li><a href="#out-of-scope">Explicitly Out of Scope</a></li>
+<li><a href="#open-questions">Open Questions for Operator</a></li>
+</ol>
+</div>
+
+<h2 id="principles">Implementation Principles</h2>
+<ul>
+<li><strong>One concern per commit.</strong> Each fix is its own commit so failures can be bisected and rolled back cleanly.</li>
+<li><strong>Preserve the existing role boundaries.</strong> No role merges or renames — they map cleanly to the documented pipeline.</li>
+<li><strong>Don't change default behavior without an opt-in.</strong> New guards (e.g. downgrade protection) ship as <code>allow_*</code> flags defaulting to the safer value, not as hard failures.</li>
+<li><strong>Every change gets a verification step.</strong> Most can be validated with <code>--check</code> against an existing cluster; P0 items get a real-cluster smoke test.</li>
+<li><strong>No new role dependencies.</strong> Solutions should not require pulling in additional Ansible collections.</li>
+</ul>
+
+<!-- ===================== PHASE 0 ===================== -->
+<section class="phase p0" id="phase-0">
+<div class="phase-header">
+<h2>Phase 0 — Critical Bugs</h2>
+<span class="priority-badge p0">P0 &middot; 4 fixes</span>
+</div>
+<p>Correctness issues that cause wrong or surprising behavior on every run. Each is a small, surgical change. Ship as four separate commits behind a single PR.</p>
+
+<div class="fix-card">
+<h3><span class="fix-id">#17</span>Fix unconditional reboot in <code>rke2_prepare</code> <span class="severity bug">Bug</span></h3>
+<p><strong>Problem.</strong> The <code>reboot</code> module has no <code>when:</code> guard, so every node reboots on every run regardless of whether packages changed. The task name ("Reboot system if required") implies conditional behavior that does not exist.</p>
+
+<h4>Affected file</h4>
+<p><span class="file-tag">roles/rke2_prepare/tasks/main.yml</span></p>
+
+<h4>Change</h4>
+<p>Insert a guard task before the reboot that checks the Debian/Ubuntu reboot-required marker, then gate the reboot on it. Extend the marker check to also detect <code>kernel</code> package upgrades explicitly (the marker file is authoritative for stock Ubuntu).</p>
+<pre><code>- name: Check if reboot is required
+  stat:
+    path: /var/run/reboot-required
+  register: reboot_required_marker
+
+- name: Reboot system if required
+  reboot:
+    msg: "Rebooting system after package upgrade"
+    connect_timeout: "{{ reboot_connect_timeout }}"
+    reboot_timeout: "{{ reboot_timeout }}"
+    pre_reboot_delay: "{{ reboot_pre_delay }}"
+    post_reboot_delay: "{{ reboot_post_delay }}"
+    test_command: uptime
+  register: reboot_result
+  when: reboot_required_marker.stat.exists</code></pre>
+
+<h4>Notes</h4>
+<ul>
+<li>For RHEL-family hosts the marker path differs (<code>/usr/local/bin/needs-restarting</code> exit code). Out of scope here — the role currently only uses <code>apt</code>, so Ubuntu assumption holds. Add a TODO comment.</li>
+<li>The existing <code>when: reboot_result.rebooted</code> guard on the subsequent <code>wait_for_connection</code> task is correct and stays — it just now actually does something meaningful.</li>
+</ul>
+</div>
+
+<div class="fix-card">
+<h3><span class="fix-id">#1</span>Fix duplicate <code>stat</code> path in <code>rke2_version_check</code> <span class="severity bug">Bug</span></h3>
+<p><strong>Problem.</strong> The "primary" and "alternative" service-file checks use the identical path <code>/usr/local/lib/systemd/system/rke2-*.service</code>. The alternative branch can never find anything the primary missed — it is dead code.</p>
+
+<h4>Affected file</h4>
+<p><span class="file-tag">roles/rke2_version_check/tasks/main.yml</span></p>
+
+<h4>Change</h4>
+<p>Point the alternative check at the actual fallback location used by RKE2 on some installs:</p>
+<div class="diff-block">
+<div class="before">path: /usr/local/lib/systemd/system/rke2-{{ rke2_type }}.service</div>
+<div class="after">path: /usr/lib/systemd/system/rke2-{{ rke2_type }}.service</div>
+</div>
+
+<h4>Verification</h4>
+<ul class="verification-list">
+<li>Run <code>ansible-playbook upgrade_rke2.yml --check -v</code> against a node whose service lives in <code>/usr/lib/systemd/system/</code> and confirm the <code>rke2_service_exists</code> fact resolves to <code>true</code>.</li>
+</ul>
+</div>
+
+<div class="fix-card">
+<h3><span class="fix-id">#4</span>Wire up <code>drain_ignore_daemonsets</code> and <code>drain_force</code> defaults <span class="severity bug">Bug</span></h3>
+<p><strong>Problem.</strong> The role defines <code>drain_ignore_daemonsets</code> and <code>drain_force</code> in <code>defaults/main.yml</code> and the README documents them, but <code>tasks/main.yml</code> hardcodes <code>--ignore-daemonsets --force</code>. The variables have no effect.</p>
+
+<h4>Affected files</h4>
+<p><span class="file-tag">roles/rke2_node_drain/tasks/main.yml</span> <span class="file-tag">roles/rke2_node_drain/defaults/main.yml</span></p>
+
+<h4>Change</h4>
+<p>Template the flags from the variables. Also add a <code>--delete-emptydir-data</code> flag variable (currently hardcoded without a toggle) for consistency.</p>
+<pre><code>- name: Drain node
+  command: &gt;
+    kubectl drain {{ inventory_hostname }}
+    {{ drain_ignore_daemonsets | bool | ternary('--ignore-daemonsets', '') }}
+    {{ drain_force | bool | ternary('--force', '') }}
+    {{ drain_delete_emptydir_data | bool | ternary('--delete-emptydir-data', '') }}
+    --timeout={{ drain_timeout }}s
+    --grace-period={{ drain_grace_period }}
+  delegate_to: localhost
+  become: false
+  register: drain_result
+  changed_when: true
+  ignore_errors: true
+  when: not (rke2_skip_upgrade | default(false))</code></pre>
+<p>Add to <code>defaults/main.yml</code>:</p>
+<pre><code>drain_delete_emptydir_data: true</code></pre>
+
+<h4>Verification</h4>
+<ul class="verification-list">
+<li>Set <code>drain_force=false</code> via <code>-e</code> and confirm <code>--force</code> is absent from the rendered command in <code>-v</code> output.</li>
+</ul>
+</div>
+
+<div class="fix-card">
+<h3><span class="fix-id">#5</span>Remove unused <code>service_start_timeout</code> variable <span class="severity bug">Dead code</span></h3>
+<p><strong>Problem.</strong> <code>service_start_timeout</code> is defined in both <code>upgrade_rke2.yml</code> playbook <code>vars</code> (lines 15 and 51) and <code>roles/rke2_install/defaults/main.yml</code>, but is never referenced by any task. The README even admits this.</p>
+
+<h4>Affected files</h4>
+<p><span class="file-tag">upgrade_rke2.yml</span> <span class="file-tag">roles/rke2_install/defaults/main.yml</span> <span class="file-tag">README.md</span></p>
+
+<h4>Change</h4>
+<ul>
+<li>Remove <code>service_start_timeout: 300</code> from both <code>vars:</code> blocks in <code>upgrade_rke2.yml</code>.</li>
+<li>Remove <code>service_start_timeout: 300</code> from <code>roles/rke2_install/defaults/main.yml</code>.</li>
+<li>Remove the corresponding row from the README's install role variables table.</li>
+</ul>
+<div class="callout warn"><strong>Decision point:</strong> alternatively, wire it into the <code>Wait for RKE2 service process</code> task as an absolute timeout wrapper (retries × delay already provides a soft cap). The cleaner option is removal — the retry/delay pair already serves the purpose. Default: remove.</div>
+</div>
+</section>
+
+<!-- ===================== PHASE 1 ===================== -->
+<section class="phase p1" id="phase-1">
+<div class="phase-header">
+<h2>Phase 1 — Robustness &amp; Safety</h2>
+<span class="priority-badge p1">P1 &middot; 6 fixes</span>
+</div>
+<p>Behavior-preserving hardening that prevents silent failures in production. These are the changes that matter most for unattended upgrade runs.</p>
+
+<div class="fix-card">
+<h3><span class="fix-id">#9</span>Add preflight validation play <span class="severity robust">Robustness</span></h3>
+<p><strong>Problem.</strong> Unlike <code>add_workers_rke2.yml</code>, the upgrade playbook has no preflight. Common failure modes (kubectl unreachable, empty inventory groups, API rate-limit) only surface mid-run.</p>
+
+<h4>Affected files</h4>
+<p><span class="file-tag">upgrade_rke2.yml</span> <span class="file-tag">roles/rke2_preflight/tasks/main.yml</span> (new) <span class="file-tag">roles/rke2_preflight/defaults/main.yml</span> (new)</p>
+
+<h4>Change</h4>
+<p>Add a new first play targeting <code>localhost</code> that runs <code>gather_facts: false</code> and validates:</p>
+<ul>
+<li><code>kubectl get nodes</code> succeeds on the control node (kubeconfig is valid and API is reachable).</li>
+<li>The <code>rke2_servers</code> group is non-empty.</li>
+<li>At least one server is currently <code>Ready</code> (cluster is healthy enough to begin).</li>
+<li>If <code>rke2_version == ""</code>, the GitHub API is reachable for latest-version detection (delegated, non-fatal — version check role already handles failure gracefully).</li>
+</ul>
+<p>Skeleton:</p>
+<pre><code>- name: Preflight Checks
+  hosts: localhost
+  become: false
+  gather_facts: false
+  tasks:
+    - name: Verify kubectl is reachable
+      command: kubectl get nodes -o name
+      register: preflight_nodes
+      changed_when: false
+
+    - name: Verify rke2_servers group is non-empty
+      assert:
+        that:
+          - groups.rke2_servers | default([]) | length &gt; 0
+        fail_msg: "Inventory must define at least one host in rke2_servers"
+
+    - name: Verify at least one server is Ready
+      shell: kubectl get nodes -l node-role.kubernetes.io/control-plane -o jsonpath='{.items[*].status.conditions[?(@.type=="Ready")].status}'
+      register: preflight_server_ready
+      changed_when: false
+      failed_when: "'True' not in preflight_server_ready.stdout"</code></pre>
+
+<h4>Verification</h4>
+<ul class="verification-list">
+<li>Run with an empty <code>rke2_servers</code> group and confirm the playbook fails fast at preflight, not mid-upgrade.</li>
+<li>Run with a broken <code>KUBECONFIG</code> and confirm failure message is actionable.</li>
+</ul>
+</div>
+
+<div class="fix-card">
+<h3><span class="fix-id">#3</span>Add rescue block for cordon state on failure <span class="severity robust">Robustness</span></h3>
+<p><strong>Problem.</strong> If <code>Wait for node to be Ready</code> in <code>rke2_node_restore</code> exhausts its retries, the host fails and <code>Uncordon</code> never runs. The node stays cordoned with no guidance to the operator.</p>
+
+<h4>Affected file</h4>
+<p><span class="file-tag">roles/rke2_node_restore/tasks/main.yml</span></p>
+
+<h4>Change</h4>
+<p>Wrap the three kubectl operations in a <code>block/rescue</code>. The <code>rescue</code> does <strong>not</strong> auto-uncordon (a failed node should stay cordoned) but prints an explicit remediation banner and re-raises the failure.</p>
+<pre><code>- name: Restore node after upgrade
+  block:
+    - name: Wait for node to be Ready
+      shell: &gt;
+        kubectl get nodes {{ inventory_hostname }} -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}'
+      delegate_to: localhost
+      become: false
+      register: node_ready
+      until: node_ready.stdout == "True"
+      retries: "{{ health_check_retries }}"
+      delay: "{{ health_check_interval }}"
+      changed_when: false
+
+    - name: Wait for pods (see #6 for tightened check)
+      ...
+
+    - name: Uncordon node
+      command: kubectl uncordon {{ inventory_hostname }}
+      delegate_to: localhost
+      become: false
+      register: uncordon_result
+      changed_when: "'uncordoned' in uncordon_result.stdout"
+
+  rescue:
+    - name: Report node still cordoned
+      fail:
+        msg: &gt;
+          Node {{ inventory_hostname }} failed to become Ready after upgrade.
+          The node remains CORDONED — do not uncordon until you have verified
+          the rke2-{{ rke2_type }} service is healthy (journalctl -u rke2-{{ rke2_type }}).
+          Once verified, run: kubectl uncordon {{ inventory_hostname }}</code></pre>
+
+<h4>Design note</h4>
+<div class="callout"><strong>Why not auto-uncordon?</strong> If the node genuinely failed to come up, uncordoning would cause the scheduler to place workloads onto a broken node. Leaving it cordoned is the safer default. The rescue block's job is to make the failure loud and actionable, not to silently reverse the cordon.</div>
+</div>
+
+<div class="fix-card">
+<h3><span class="fix-id">#6</span>Tighten pod readiness check <span class="severity robust">Robustness</span></h3>
+<p><strong>Problem.</strong> The current check <code>until: "'Failed' not in pod_phases.stdout"</code> passes immediately while pods are still <code>Pending</code> or <code>ContainerCreating</code>. On a freshly upgraded node this is the common state — the check is effectively a no-op.</p>
+
+<h4>Affected file</h4>
+<p><span class="file-tag">roles/rke2_node_restore/tasks/main.yml</span></p>
+
+<h4>Change</h4>
+<p>Require every pod phase on the node to be either <code>Running</code> or <code>Succeeded</code>. Use a JSON-path count to avoid string-substring false positives.</p>
+<pre><code>- name: Wait for all pods to be running on the node
+  shell: &gt;
+    kubectl get pods --field-selector spec.nodeName={{ inventory_hostname }}
+    -o jsonpath='{.items[*].status.phase}'
+  delegate_to: localhost
+  become: false
+  register: pod_phases
+  until: &gt;
+    pod_phases.stdout | split(' ') | length
+      == pod_phases.stdout | regex_findall('Running|Succeeded') | length
+  retries: "{{ health_check_retries }}"
+  delay: "{{ health_check_interval }}"
+  changed_when: false
+  when: not (rke2_skip_upgrade | default(false))</code></pre>
+<p>Handle the empty-pods edge case (a node with zero non-DaemonSet pods): an empty stdout means zero pods to wait for, which is acceptable.</p>
+</div>
+
+<div class="fix-card">
+<h3><span class="fix-id">#2</span>Preflight check: inventory hostname must match Kubernetes node name <span class="severity robust">Robustness</span></h3>
+<p><strong>Problem.</strong> Every kubectl operation in <code>rke2_node_drain</code> and <code>rke2_node_restore</code> uses <code>{{ inventory_hostname }}</code> as the node name. If the inventory uses IP addresses or aliases instead of the OS hostname, kubectl silently targets a non-existent node.</p>
+
+<h4>Affected file</h4>
+<p><span class="file-tag">roles/rke2_preflight/tasks/main.yml</span> (added in #9)</p>
+
+<h4>Change</h4>
+<p>Within the preflight play (added by #9), assert that each inventory hostname appears in the list of Kubernetes node names:</p>
+<pre><code>- name: Verify inventory hostnames match Kubernetes node names
+  assert:
+    that:
+      - item in (preflight_nodes.stdout_lines | map('trim') | list)
+    fail_msg: &gt;
+      Inventory host '{{ item }}' is not a Kubernetes node name.
+      kubectl operations use inventory_hostname as the node name; ensure
+      your inventory uses the OS hostname (which RKE2 registers as the node name).
+  loop: "{{ groups.rke2_servers + groups.rke2_agents | default([]) }}"
+  when: item in preflight_nodes.stdout_lines</code></pre>
+<div class="callout warn"><strong>Implementation note.</strong> The <code>when</code> guard prevents the loop from failing on hosts that are intentionally not in the cluster yet. Consider whether you want a hard fail (recommended) or a warning. Default to hard fail.</div>
+</div>
+
+<div class="fix-card">
+<h3><span class="fix-id">#12</span>Add <code>any_errors_fatal</code> to server play <span class="severity robust">Robustness</span></h3>
+<p><strong>Problem.</strong> With <code>serial: 1</code> and no <code>any_errors_fatal</code>, a failed host marks the batch failed but the next serial iteration still runs. Server 3 could begin upgrading while server 2 is broken and cordoned, leaving the cluster in a split-version state.</p>
+
+<h4>Affected file</h4>
+<p><span class="file-tag">upgrade_rke2.yml</span></p>
+
+<h4>Change</h4>
+<p>Set <code>any_errors_fatal: true</code> on the <strong>server play only</strong>. Leave the agent play as-is: losing a single agent mid-run is recoverable; losing a second server may compromise etcd quorum.</p>
+<div class="diff-block">
+<div class="before">- name: Upgrade RKE2 Server Nodes
+  hosts: rke2_servers
+  become: true
+  serial: 1</div>
+<div class="after">- name: Upgrade RKE2 Server Nodes
+  hosts: rke2_servers
+  become: true
+  serial: 1
+  any_errors_fatal: true</div>
+</div>
+</div>
+
+<div class="fix-card">
+<h3><span class="fix-id">#10</span>Verify node versions in post-upgrade check <span class="severity robust">Robustness</span></h3>
+<p><strong>Problem.</strong> The <code>Post-Upgrade Verification</code> play only checks that all nodes are <code>Ready</code>. It does not verify that nodes actually report the target RKE2 version — a node could fail to upgrade silently and still pass.</p>
+
+<h4>Affected file</h4>
+<p><span class="file-tag">upgrade_rke2.yml</span></p>
+
+<h4>Change</h4>
+<p>Add a version assertion task to the post-upgrade play. The target version fact is computed per-host during the run; surface it via a hostvars lookup.</p>
+<pre><code>- name: Collect running kubelet versions
+  shell: kubectl get nodes -o jsonpath='{range .items[*]}{.metadata.name}{"="}{.status.nodeInfo.kubeletVersion}{"\n"}{end}'
+  register: node_versions_raw
+  changed_when: false
+
+- name: Display node versions
+  debug:
+    var: node_versions_raw.stdout_lines
+
+- name: Verify all nodes report the target version
+  assert:
+    that:
+      - target_version in node_versions_raw.stdout
+    fail_msg: &gt;
+      Not all nodes report the target version {{ target_version }}.
+      Node versions:
+      {{ node_versions_raw.stdout_lines }}
+  vars:
+    target_version: "{{ hostvars[groups.rke2_servers[0]].rke2_target_version | default('') }}"</code></pre>
+<div class="callout warn"><strong>Caveat.</strong> <code>kubeletVersion</code> reports the Kubernetes version (<code>v1.28.4</code>), not the full RKE2 build tag (<code>v1.28.4+rke2r1</code>). The assertion should match on the prefix, not full equality. Use <code>regex_search</code> or normalize both sides before comparing.</div>
+</div>
+</section>
+
+<!-- ===================== PHASE 2 ===================== -->
+<section class="phase p2" id="phase-2">
+<div class="phase-header">
+<h2>Phase 2 — Hygiene &amp; Dependencies</h2>
+<span class="priority-badge p2">P2 &middot; 3 fixes</span>
+</div>
+<p>Cleanup and dependency reduction. Lower production risk but improves maintainability and removes external runtime requirements.</p>
+
+<div class="fix-card">
+<h3><span class="fix-id">#11</span>Replace <code>curl | jq</code> with <code>uri</code> module <span class="severity quality">Quality</span></h3>
+<p><strong>Problem.</strong> <code>rke2_version_check</code> uses <code>curl -s &lt;github-api&gt; | jq -r '.tag_name'</code> delegated to localhost. This forces a <code>jq</code> dependency on the control node and is subject to GitHub's unauthenticated rate limit (60 req/hr per IP). The README incorrectly lists <code>jq</code> under "Target Node Requirements" — it's actually a control-node requirement.</p>
+
+<h4>Affected files</h4>
+<p><span class="file-tag">roles/rke2_version_check/tasks/main.yml</span> <span class="file-tag">roles/rke2_version_check/defaults/main.yml</span> <span class="file-tag">README.md</span></p>
+
+<h4>Change</h4>
+<p>Replace the shell pipe with the Ansible <code>uri</code> module, which parses JSON natively:</p>
+<pre><code>- name: Query latest available RKE2 version
+  uri:
+    url: "{{ rke2_github_api_url }}"
+    method: GET
+    return_content: true
+    status_code: 200
+    timeout: 15
+  register: rke2_latest_response
+  delegate_to: localhost
+  become: false
+  when: rke2_version == ""
+
+- name: Set latest version fact
+  set_fact:
+    rke2_latest_tag: "{{ rke2_latest_response.json.tag_name | default('') }}"
+  when: rke2_version == ""</code></pre>
+<p>Update downstream logic to read from <code>rke2_latest_response.json.tag_name</code> instead of <code>rke2_latest_version_raw.stdout</code>. Add an optional <code>github_token</code> var in defaults that, when set, is sent as <code>Authorization: token ...</code> to raise the rate limit to 5000 req/hr.</p>
+<p>Update README: move <code>jq</code> from "Target Node Requirements" to a removed note, or note that it is no longer required at all.</p>
+</div>
+
+<div class="fix-card">
+<h3><span class="fix-id">#8</span>Add downgrade guard with opt-in flag <span class="severity quality">Quality</span></h3>
+<p><strong>Problem.</strong> Version comparison is plain string equality. If an operator passes an older <code>rke2_version</code>, the playbook proceeds with a downgrade without warning — risky and rarely intended.</p>
+
+<h4>Affected files</h4>
+<p><span class="file-tag">roles/rke2_version_check/tasks/main.yml</span> <span class="file-tag">roles/rke2_version_check/defaults/main.yml</span></p>
+
+<h4>Change</h4>
+<p>Add a new default <code>allow_downgrade: false</code>. After computing installed and target versions, compare them and fail unless downgrade is explicitly allowed.</p>
+<pre><code># in defaults/main.yml
+allow_downgrade: false
+
+# in tasks/main.yml, after versions are known
+- name: Detect attempted downgrade
+  set_fact:
+    rke2_downgrade_attempted: &gt;
+      {{ rke2_installed_version is version(rke2_target_version, 'gt') }}
+  when:
+    - not rke2_version_check_failed
+    - not rke2_skip_upgrade | default(false)
+
+- name: Refuse downgrade unless explicitly allowed
+  fail:
+    msg: &gt;
+      Installed version {{ rke2_installed_version }} is newer than target
+      {{ rke2_target_version }}. Downgrade is dangerous and refused by default.
+      To proceed, set: -e allow_downgrade=true
+  when:
+    - rke2_downgrade_attempted | default(false)
+    - not allow_downgrade</code></pre>
+<p>Use Ansible's <code>version</code> comparison filter (not string comparison) so <code>v1.28.10</code> &gt; <code>v1.28.4</code> is correctly evaluated.</p>
+</div>
+
+<div class="fix-card">
+<h3><span class="fix-id">#7</span>Gate <code>rke2_prepare</code> heavy operations on skip flag <span class="severity quality">Quality</span></h3>
+<p><strong>Problem.</strong> <code>rke2_prepare</code> runs <code>apt dist-upgrade</code> and the (currently unconditional — see #17) reboot <em>before</em> <code>rke2_version_check</code>. A node already at the target version still gets a full OS upgrade and reboot, which is unnecessary downtime if the operator only wants the RKE2 step.</p>
+
+<h4>Affected files</h4>
+<p><span class="file-tag">upgrade_rke2.yml</span> <span class="file-tag">roles/rke2_prepare/tasks/main.yml</span> <span class="file-tag">roles/rke2_prepare/defaults/main.yml</span></p>
+
+<h4>Change</h4>
+<p>Two-part change:</p>
+<ol>
+<li><strong>Reorder</strong> the tasks in <code>upgrade_rke2.yml</code> so <code>rke2_version_check</code> runs first, then <code>rke2_prepare</code> is included with a <code>when: not rke2_skip_upgrade</code> guard.</li>
+<li>Add a new default <code>prepare_always_runs: false</code>. When <code>true</code>, restores the old behavior for operators who want OS patching regardless of RKE2 skip.</li>
+</ol>
+<div class="diff-block">
+<div class="before">- name: Prepare system
+  include_role:
+    name: rke2_prepare
+
+- name: Check RKE2 version
+  include_role:
+    name: rke2_version_check</div>
+<div class="after">- name: Check RKE2 version
+  include_role:
+    name: rke2_version_check
+
+- name: Prepare system
+  include_role:
+    name: rke2_prepare
+  when: &gt;
+    (not (rke2_skip_upgrade | default(false)))
+    or (prepare_always_runs | bool)</div>
+</div>
+<div class="callout warn"><strong>Trade-off to confirm with operator.</strong> Some teams want OS patching on every playbook run regardless of RKE2 state. The <code>prepare_always_runs</code> flag preserves that option. Default to <code>false</code> (skip on no-op runs) but surface this as an open question below.</div>
+</div>
+</section>
+
+<!-- ===================== PHASE 3 ===================== -->
+<section class="phase p3" id="phase-3">
+<div class="phase-header">
+<h2>Phase 3 — Polish</h2>
+<span class="priority-badge p3">P3 &middot; 2 fixes</span>
+</div>
+<p>Cosmetic and maintainability improvements with no behavioral impact.</p>
+
+<div class="fix-card">
+<h3><span class="fix-id">#13</span>Extract shared vars to <code>group_vars/rke2_cluster.yml</code> <span class="severity quality">Quality</span></h3>
+<p><strong>Problem.</strong> The server and agent plays in <code>upgrade_rke2.yml</code> duplicate an identical <code>vars:</code> block (drain timeouts, health check tuning, etc.). Keeping the two-play structure is correct (it enforces servers-before-agents ordering), but the duplicated vars are a maintenance burden.</p>
+
+<h4>Affected files</h4>
+<p><span class="file-tag">upgrade_rke2.yml</span> <span class="file-tag">group_vars/rke2_cluster.yml</span> (new)</p>
+
+<h4>Change</h4>
+<p>Move the shared vars out of the play <code>vars:</code> blocks into a group vars file applied to the <code>rke2_cluster</code> parent group. Leave only <code>rke2_type</code> in each play's <code>vars:</code>.</p>
+<pre><code># group_vars/rke2_cluster.yml
+drain_timeout: 300
+drain_grace_period: 30
+health_check_retries: 30
+health_check_interval: 10
+rke2_version: ""</code></pre>
+<p>Each play's <code>vars:</code> shrinks to:</p>
+<pre><code>  vars:
+    rke2_type: server   # or agent</code></pre>
+</div>
+
+<div class="fix-card">
+<h3><span class="fix-id">#14</span>Improve <code>changed_when</code> on drain task <span class="severity quality">Quality</span></h3>
+<p><strong>Problem.</strong> <code>changed_when: true</code> on <code>Drain node</code> always reports changed, even when no pods were evicted. Cosmetic but noisy in CI/CD reports.</p>
+
+<h4>Affected file</h4>
+<p><span class="file-tag">roles/rke2_node_drain/tasks/main.yml</span></p>
+
+<h4>Change</h4>
+<p>Mark changed only when the drain output indicates eviction occurred:</p>
+<pre><code>  changed_when: &gt;
+    'evicting' in drain_result.stdout
+    or 'deleted' in drain_result.stdout</code></pre>
+<p>If the drain output is unreliable, leave as <code>changed_when: true</code> — this is genuinely a state-changing command — and downgrade this fix to "optional".</p>
+</div>
+</section>
+
+<!-- ===================== SEQUENCING ===================== -->
+<h2 id="sequencing">Commit Sequencing &amp; Verification</h2>
+
+<p>Each phase is one PR. Within a phase, each fix is its own commit so bisecting is surgical. Commits must be ordered to satisfy dependencies:</p>
+
+<table>
+<thead><tr><th>Order</th><th>Commit</th><th>Phase</th><th>Depends on</th><th>Verification</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>#17 guard reboot with reboot-required marker</td><td>0</td><td>—</td><td>Run on a node with no pending updates; confirm no reboot</td></tr>
+<tr><td>2</td><td>#1 fix duplicate stat path</td><td>0</td><td>—</td><td><code>--check -v</code> against a node with service in <code>/usr/lib</code></td></tr>
+<tr><td>3</td><td>#4 wire up drain_ignore_daemonsets/force</td><td>0</td><td>—</td><td><code>-e drain_force=false</code>, confirm flag absent in <code>-v</code></td></tr>
+<tr><td>4</td><td>#5 remove service_start_timeout</td><td>0</td><td>—</td><td><code>ansible-playbook --syntax-check</code></td></tr>
+<tr><td>5</td><td>#9 add preflight play + role</td><td>1</td><td>—</td><td>Run with empty <code>rke2_servers</code> group, expect fast fail</td></tr>
+<tr><td>6</td><td>#2 inventory/hostname match check (in preflight)</td><td>1</td><td>#9</td><td>Inventory with IP-as-hostname, expect actionable fail</td></tr>
+<tr><td>7</td><td>#3 rescue block in rke2_node_restore</td><td>1</td><td>—</td><td>Simulate failed Ready check, confirm rescue message</td></tr>
+<tr><td>8</td><td>#6 tighten pod readiness check</td><td>1</td><td>—</td><td>Run on busy node, confirm uncordon waits for Running</td></tr>
+<tr><td>9</td><td>#12 any_errors_fatal on server play</td><td>1</td><td>—</td><td>Force failure on server 2, confirm server 3 does not start</td></tr>
+<tr><td>10</td><td>#10 version assertion in post-upgrade</td><td>1</td><td>—</td><td>Run with stale target version, expect assertion failure</td></tr>
+<tr><td>11</td><td>#11 replace curl|jq with uri module</td><td>2</td><td>—</td><td>Run with empty <code>rke2_version</code>, confirm latest detected</td></tr>
+<tr><td>12</td><td>#8 downgrade guard</td><td>2</td><td>—</td><td>Pass older <code>rke2_version</code>, expect refusal</td></tr>
+<tr><td>13</td><td>#7 reorder prepare + gate on skip</td><td>2</td><td>#17</td><td>Run against already-upgraded cluster, confirm no dist-upgrade</td></tr>
+<tr><td>14</td><td>#13 extract group_vars</td><td>3</td><td>—</td><td><code>--syntax-check</code>, full dry run</td></tr>
+<tr><td>15</td><td>#14 drain changed_when</td><td>3</td><td>#4</td><td>Run drain on empty node, confirm <code>changed: false</code></td></tr>
+</tbody>
+</table>
+
+<div class="callout"><strong>Dependency note.</strong> #2 depends on #9 because the inventory/hostname check is implemented inside the new preflight role. #7 depends on #17 because the prepare-order change is only meaningful once the reboot is conditional — otherwise the prepare role is still always a no-op-vs-disruption question. #14 depends on #4 because both touch <code>rke2_node_drain/tasks/main.yml</code> and the drain command template changes in #4.</div>
+
+<h2 id="out-of-scope">Explicitly Out of Scope</h2>
+<ul>
+<li><strong>RHEL/CentOS support.</strong> The <code>rke2_prepare</code> role uses <code>apt</code> exclusively. Adding <code>dnf/yum</code> branches and a RHEL-specific reboot-required detection is a separate effort.</li>
+<li><strong>Merging the server and agent plays.</strong> Considered and rejected — the two-play structure is what enforces servers-before-agents ordering without depending on inventory sequence. Keep as-is.</li>
+<li><strong>Replacing <code>rke2 --version</code> parsing with <code>systemctl show</code>.</strong> The <code>awk '{print $3}'</code> approach was reviewed and found stable. Not worth the churn.</li>
+<li><strong>Molecule test scaffolding.</strong> Would add real value but is a separate workstream. Recommend a follow-up plan after Phase 1 lands.</li>
+<li><strong>Auto-rollback on failure.</strong> Too risky to automate. Operators should roll back by re-running with a pinned older <code>rke2_version</code>, as documented.</li>
+</ul>
+
+<h2 id="open-questions">Open Questions for Operator</h2>
+<p>These need a decision before the relevant commit lands:</p>
+<ol>
+<li><strong>#5 — remove or wire up <code>service_start_timeout</code>?</strong> Plan defaults to <em>remove</em>. If you want it to bound the absolute wait time on the service-check task, say so and it becomes a real timeout wrapper.</li>
+<li><strong>#7 — should OS patching run on no-op upgrades?</strong> Plan defaults to <em>skip when <code>rke2_skip_upgrade</code></em> via <code>prepare_always_runs: false</code>. If your team relies on the playbook also keeping nodes patched regardless of RKE2 state, set the default to <code>true</code>.</li>
+<li><strong>#2 — hard fail or warn on inventory/hostname mismatch?</strong> Plan defaults to <em>hard fail</em>. A warning-only mode is reasonable if you have legacy inventories being migrated.</li>
+<li><strong>#12 — extend <code>any_errors_fatal</code> to agents too?</strong> Plan applies it to servers only (etcd quorum risk). If you want the agent play to also halt on first failure, the change is one line.</li>
+<li><strong>Verification environment.</strong> Phases 0 and 1 really need a live multi-node cluster to validate (cordon behavior, reboot gating, rescue flow). Is there a staging cluster available, or should we invest in a local multi-node vagrant/libvirt setup first?</li>
+</ol>
+
+<footer>
+Plan version 1.0 &middot; 14 fixes across 4 phases &middot; 2 suggestions retracted (#15, #16) &middot; 1 new bug surfaced (#17) during self-review
+</footer>
+</body>
+</html>

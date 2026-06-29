@@ -2,28 +2,35 @@
 # RKE2 Kubernetes Cluster Upgrade Playbook
 # Upgrades server nodes first (sequentially), then agent nodes (sequentially)
 
+- name: Preflight Checks
+  hosts: localhost
+  become: false
+  gather_facts: false
+  tasks:
+    - name: Run preflight validation
+      include_role:
+        name: rke2_preflight
+
+
 - name: Upgrade RKE2 Server Nodes
   hosts: rke2_servers
   become: true
   serial: 1
+  any_errors_fatal: true
   vars:
-    # Common configurable variables
-    drain_timeout: 300
-    drain_grace_period: 30
-    health_check_retries: 30
-    health_check_interval: 10
-    service_start_timeout: 300
-    rke2_version: ""  # Leave empty for latest, or specify version (e.g., "v1.28.4+rke2r1")
     rke2_type: server
 
   tasks:
-    - name: Prepare system
-      include_role:
-        name: rke2_prepare
-
     - name: Check RKE2 version
       include_role:
         name: rke2_version_check
+
+    - name: Prepare system
+      include_role:
+        name: rke2_prepare
+      when: >-
+        (not (rke2_skip_upgrade | default(false)))
+        or (prepare_always_runs | bool)
 
     - name: Drain node
       include_role:
@@ -43,23 +50,19 @@
   become: true
   serial: 1
   vars:
-    # Common configurable variables
-    drain_timeout: 300
-    drain_grace_period: 30
-    health_check_retries: 30
-    health_check_interval: 10
-    service_start_timeout: 300
-    rke2_version: ""  # Leave empty for latest, or specify version (e.g., "v1.28.4+rke2r1")
     rke2_type: agent
 
   tasks:
-    - name: Prepare system
-      include_role:
-        name: rke2_prepare
-
     - name: Check RKE2 version
       include_role:
         name: rke2_version_check
+
+    - name: Prepare system
+      include_role:
+        name: rke2_prepare
+      when: >-
+        (not (rke2_skip_upgrade | default(false)))
+        or (prepare_always_runs | bool)
 
     - name: Drain node
       include_role:
@@ -83,6 +86,7 @@
       command: kubectl get nodes -o wide
       register: nodes_status
       changed_when: false
+      check_mode: false
 
     - name: Display cluster nodes status
       debug:
@@ -92,11 +96,37 @@
       shell: kubectl get nodes -o jsonpath='{.items[*].status.conditions[?(@.type=="Ready")].status}'
       register: all_ready
       changed_when: false
+      check_mode: false
 
     - name: Fail if any node is not Ready
       fail:
         msg: "One or more nodes are not in Ready state"
       when: "'False' in all_ready.stdout"
+
+    - name: Collect running kubelet versions
+      shell: >-
+        kubectl get nodes -o
+        jsonpath='{range .items[*]}{.metadata.name}{"="}{.status.nodeInfo.kubeletVersion}{"\n"}{end}'
+      register: node_versions_raw
+      changed_when: false
+      check_mode: false
+
+    - name: Display node versions
+      debug:
+        var: node_versions_raw.stdout_lines
+
+    - name: Verify all nodes report the target version
+      # kubeletVersion reports the Kubernetes version (e.g. v1.28.4) without the
+      # RKE2 build suffix (+rke2r1), so compare on the prefix before any '+'.
+      assert:
+        that:
+          - node_versions_raw.stdout is search(target_kubelet_version)
+        fail_msg: >-
+          Not all nodes report the target kubelet version {{ target_kubelet_version }}.
+          Node versions:
+          {{ node_versions_raw.stdout_lines }}
+      vars:
+        target_kubelet_version: "{{ (hostvars[groups.rke2_servers[0]].rke2_target_version | default('')).split('+')[0] }}"
 
     - name: Display upgrade complete message
       debug:

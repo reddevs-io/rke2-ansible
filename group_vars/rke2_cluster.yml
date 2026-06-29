@@ -1,0 +1,22 @@
+---
+# Shared variables applied to all hosts in the rke2_cluster inventory group.
+# These were previously duplicated in the server and agent plays in
+# upgrade_rke2.yml. Each play now only sets rke2_type locally.
+
+# Drain settings
+drain_timeout: 300
+drain_grace_period: 30
+
+# Health check settings
+health_check_retries: 30
+health_check_interval: 10
+
+# Target RKE2 version (empty for latest)
+rke2_version: ""
+
+# When false (default), system preparation (apt dist-upgrade + reboot) is skipped
+# on no-op upgrade runs. Set to true to always run OS patching regardless of the
+# RKE2 version skip decision.
+# NOTE: must be defined here (not only in role defaults) because the playbook
+# evaluates this in a `when:` condition before the role's defaults are loaded.
+prepare_always_runs: false

@@ -42,7 +42,7 @@ h2 { font-size: 1rem; font-weight: 600; text-transform: uppercase; letter-spacin
 
 <div class="stats-bar">
   <div class="stat done">
-    <span class="count" id="count-done">1</span>
+    <span class="count" id="count-done">6</span>
     <span class="label">Completed</span>
   </div>
   <div class="stat active">
@@ -50,7 +50,7 @@ h2 { font-size: 1rem; font-weight: 600; text-transform: uppercase; letter-spacin
     <span class="label">In Progress</span>
   </div>
   <div class="stat next">
-    <span class="count" id="count-next">0</span>
+    <span class="count" id="count-next">1</span>
     <span class="label">Next Steps</span>
   </div>
 </div>
@@ -64,6 +64,31 @@ h2 { font-size: 1rem; font-weight: 600; text-transform: uppercase; letter-spacin
       <td><span class="badge done">Done</span></td>
       <td>2026-06-29</td>
     </tr>
+    <tr>
+      <td>Code review of upgrade_rke2.yml + 6 roles (14 findings, 2 retracted, 1 new)</td>
+      <td><span class="badge done">Done</span></td>
+      <td>2026-06-29</td>
+    </tr>
+    <tr>
+      <td>Write implementation plan to .agent/plans/upgrade-playbook-improvements.html</td>
+      <td><span class="badge done">Done</span></td>
+      <td>2026-06-29</td>
+    </tr>
+    <tr>
+      <td>Phase 0 (P0 bugs: #17, #1, #4, #5) implementation</td>
+      <td><span class="badge done">Done</span></td>
+      <td>2026-06-29</td>
+    </tr>
+    <tr>
+      <td>Phase 1 (P1 robustness: #9, #2, #3, #6, #12, #10) implementation</td>
+      <td><span class="badge done">Done</span></td>
+      <td>2026-06-29</td>
+    </tr>
+    <tr>
+      <td>Phase 2 (P2 hygiene: #11, #8, #7) + Phase 3 (P3 polish: #13, #14) implementation</td>
+      <td><span class="badge done">Done</span></td>
+      <td>2026-06-29</td>
+    </tr>
   </tbody>
 </table>
 
@@ -71,6 +96,22 @@ h2 { font-size: 1rem; font-weight: 600; text-transform: uppercase; letter-spacin
 <article class="log-entry">
   <time>2026-06-29 10:22:56</time>
   <p>Progress tracker initialized. Baseline: Memory Bank setup complete. No active code task; no scheduled next steps yet.</p>
+</article>
+<article class="log-entry">
+  <time>2026-06-29 10:37:14</time>
+  <p>Completed code review and wrote implementation plan (14 fixes, 4 phases). Plan at <code>.agent/plans/upgrade-playbook-improvements.html</code>. Currently blocked on 5 operator decisions before Phase 0 implementation can begin.</p>
+</article>
+<article class="log-entry">
+  <time>2026-06-29 10:55:00</time>
+  <p>All 15 plan fixes implemented (Phase 0–3). Syntax-check passes for INI+YAML inventories. --check dry-run confirms preflight role works (strict hostname check fails fast; warning mode proceeds). No live cluster for full smoke test — flagged as verification gap. Next: README files section needs update for new rke2_preflight role and group_vars file.</p>
+</article>
+<article class="log-entry">
+  <time>2026-06-29 11:13:57</time>
+  <p>Live-cluster verification on selassie (6 nodes) completed in --check mode. Found and fixed 4 check-mode bugs. Downgrade guard verified. Post-upgrade version assertion verified. Ready for real upgrade run.</p>
+</article>
+<article class="log-entry">
+  <time>2026-06-29 12:22:02</time>
+  <p>Real upgrade of selassie cluster fully complete. All 6 nodes Ready on v1.36.2+rke2r1. 5 incidents handled during run: API timeout on uncordon, stale etcd process on control-baldwin, prepare_always_runs group_vars fix, Ceph PDB blocking drain (operator stopped Ceph), worker-biko kubelet delayed registration.</p>
 </article>
 </body>
 </html>

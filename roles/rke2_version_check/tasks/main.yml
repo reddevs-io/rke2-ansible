@@ -1,6 +1,18 @@
 ---
 # tasks file for rke2_version_check
 
+# Set node_name early — this role now runs before rke2_prepare, and several
+# tasks below reference node_name in debug/fail messages.
+- name: Get current node name
+  command: hostname
+  register: current_hostname
+  changed_when: false
+  check_mode: false
+
+- name: Set node name fact
+  set_fact:
+    node_name: "{{ current_hostname.stdout }}"
+
 - name: Check if RKE2 {{ rke2_type }} service exists (primary location)
   stat:
     path: /usr/local/lib/systemd/system/rke2-{{ rke2_type }}.service
@@ -8,7 +20,7 @@
 
 - name: Check if RKE2 {{ rke2_type }} service exists (alternative location)
   stat:
-    path: /usr/local/lib/systemd/system/rke2-{{ rke2_type }}.service
+    path: /usr/lib/systemd/system/rke2-{{ rke2_type }}.service
   register: rke2_service_alt
   when: not rke2_service_primary.stat.exists
 
@@ -27,12 +39,14 @@
   register: rke2_installed_version_raw
   changed_when: false
   failed_when: false
+  check_mode: false
 
 - name: Detect installed RKE2 version (alternative location)
   shell: /var/lib/rancher/rke2/bin/rke2 --version 2>/dev/null | head -1 | awk '{print $3}'
   register: rke2_installed_version_alt_raw
   changed_when: false
   failed_when: false
+  check_mode: false
   when: rke2_installed_version_raw.rc != 0 or rke2_installed_version_raw.stdout == ""
 
 - name: Set installed version fact
@@ -40,30 +54,39 @@
     rke2_installed_version: "{{ rke2_installed_version_raw.stdout if (rke2_installed_version_raw.rc == 0 and rke2_installed_version_raw.stdout != '') else (rke2_installed_version_alt_raw.stdout | default('')) }}"
 
 - name: Query latest available RKE2 version
-  shell: curl -s {{ rke2_github_api_url }} | jq -r '.tag_name'
-  register: rke2_latest_version_raw
-  changed_when: false
-  failed_when: false
+  uri:
+    url: "{{ rke2_github_api_url }}"
+    method: GET
+    return_content: true
+    status_code: 200
+    timeout: 15
+    headers: >-
+      {{
+        {'Authorization': 'token ' + github_token}
+        if github_token | default('') != '' else {}
+      }}
+  register: rke2_latest_response
   delegate_to: localhost
   become: false
+  failed_when: false
+  check_mode: false
   when: rke2_version == ""
 
 - name: Debug latest version query result
   debug:
     msg: |
       Latest version query result:
-        Task skipped: {{ rke2_latest_version_raw is skipped | default(false) }}
-        Return code: {{ rke2_latest_version_raw.rc | default('N/A') }}
-        Stdout: {{ rke2_latest_version_raw.stdout | default('N/A') }}
-        Stderr: {{ rke2_latest_version_raw.stderr | default('N/A') }}
+        Task skipped: {{ rke2_latest_response is skipped | default(false) }}
+        Status: {{ rke2_latest_response.status | default('N/A') }}
+        Tag: {{ (rke2_latest_response.json.tag_name | default('')) if rke2_latest_response.json is defined else 'N/A' }}
 
 - name: Set target RKE2 version fact
   set_fact:
     rke2_target_version: >-
       {%- if rke2_version != '' -%}
       {{ rke2_version }}
-      {%- elif rke2_latest_version_raw is defined and not (rke2_latest_version_raw is skipped) and rke2_latest_version_raw.rc == 0 and rke2_latest_version_raw.stdout != '' -%}
-      {{ rke2_latest_version_raw.stdout }}
+      {%- elif rke2_latest_response is defined and not (rke2_latest_response is skipped) and rke2_latest_response.status | default(0) == 200 and rke2_latest_response.json is defined and rke2_latest_response.json.tag_name | default('') != '' -%}
+      {{ rke2_latest_response.json.tag_name }}
       {%- else -%}
       {%- endif -%}
 
@@ -92,6 +115,25 @@
     rke2_skip_upgrade: false
     rke2_skip_reason: "Version detection failed, proceeding with upgrade as fail-safe"
   when: rke2_version_check_failed
+
+# Fix #8: downgrade guard. Uses Ansible's version comparison filter (not string
+# equality) so v1.28.10 is correctly detected as newer than v1.28.4.
+- name: Detect attempted downgrade
+  set_fact:
+    rke2_downgrade_attempted: "{{ rke2_installed_version is version(rke2_target_version, 'gt') }}"
+  when:
+    - not rke2_version_check_failed
+    - not (rke2_skip_upgrade | default(false))
+
+- name: Refuse downgrade unless explicitly allowed
+  fail:
+    msg: >-
+      Installed version {{ rke2_installed_version }} is newer than target
+      {{ rke2_target_version }}. Downgrade is dangerous and refused by default.
+      To proceed anyway, set: -e allow_downgrade=true
+  when:
+    - rke2_downgrade_attempted | default(false)
+    - not (allow_downgrade | bool)
 
 - name: Display version check results
   debug:

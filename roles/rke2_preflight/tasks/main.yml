@@ -1,0 +1,69 @@
+---
+# tasks file for rke2_preflight
+# Runs on the control node (localhost) before any remote host is touched.
+# Validates that kubectl is reachable, inventory groups are populated, at least
+# one server is Ready, and that inventory hostnames match Kubernetes node names
+# (kubectl operations elsewhere use inventory_hostname as the node name).
+
+- name: Verify kubectl is reachable and can list nodes
+  command: kubectl get nodes -o name
+  register: preflight_nodes
+  changed_when: false
+  failed_when: preflight_nodes.rc != 0
+  check_mode: false
+
+- name: Verify rke2_servers group is non-empty
+  assert:
+    that:
+      - groups.rke2_servers | default([]) | length > 0
+    fail_msg: "Inventory must define at least one host in the rke2_servers group"
+
+- name: Verify at least one server node is Ready
+  shell: >-
+    kubectl get nodes
+    -l node-role.kubernetes.io/control-plane,node-role.kubernetes.io/master
+    -o jsonpath='{.items[*].status.conditions[?(@.type=="Ready")].status}'
+  register: preflight_server_ready
+  changed_when: false
+  failed_when: "'True' not in preflight_server_ready.stdout"
+  check_mode: false
+
+- name: Display preflight cluster node list
+  debug:
+    var: preflight_nodes.stdout_lines
+
+# Fix #2: inventory_hostname must equal the Kubernetes node name, because every
+# kubectl cordon/drain/uncordon call uses {{ inventory_hostname }} directly.
+- name: Build list of Kubernetes node names
+  set_fact:
+    preflight_k8s_node_names: "{{ preflight_nodes.stdout_lines | map('trim') | map('regex_replace', '^node/', '') | list }}"
+
+- name: Collect inventory hostnames not present in the cluster
+  set_fact:
+    preflight_mismatched_hosts: >-
+      {{
+        (groups.rke2_servers | default([]) + groups.rke2_agents | default([]))
+        | difference(preflight_k8s_node_names)
+      }}
+
+- name: Warn about inventory/hostname mismatch
+  debug:
+    msg: >-
+      WARNING: the following inventory hostnames are not Kubernetes node names.
+      kubectl operations (cordon/drain/uncordon) use inventory_hostname as the
+      node name and will fail or target the wrong node: {{ preflight_mismatched_hosts }}
+  when:
+    - preflight_mismatched_hosts | length > 0
+    - not (preflight_strict_hostname_check | bool)
+
+- name: Fail on inventory/hostname mismatch (strict mode)
+  fail:
+    msg: >-
+      The following inventory hostnames are not Kubernetes node names:
+      {{ preflight_mismatched_hosts }}.
+      kubectl operations use inventory_hostname as the node name; ensure your
+      inventory uses the OS hostname (which RKE2 registers as the node name).
+      To downgrade to a warning, set: -e preflight_strict_hostname_check=false
+  when:
+    - preflight_mismatched_hosts | length > 0
+    - preflight_strict_hostname_check | bool

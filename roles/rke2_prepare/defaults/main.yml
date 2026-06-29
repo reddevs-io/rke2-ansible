@@ -1,6 +1,11 @@
 ---
 # defaults file for rke2_prepare
 
+# When true, the prepare role (apt dist-upgrade + reboot) runs even if the
+# version check decided to skip the RKE2 upgrade. When false (default), the
+# prepare role is skipped on no-op runs to avoid unnecessary reboots.
+prepare_always_runs: false
+
 # Apt cache validity time in seconds
 apt_cache_valid_time: 3600
 

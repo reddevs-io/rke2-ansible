@@ -1,0 +1,6 @@
+---
+# defaults file for rke2_preflight
+
+# When true, a mismatch between inventory_hostname and the Kubernetes node name
+# is a hard failure. When false, only a warning is printed.
+preflight_strict_hostname_check: true

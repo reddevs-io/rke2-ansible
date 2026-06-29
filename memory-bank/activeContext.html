@@ -38,14 +38,20 @@ ul li:empty::after { content: '—'; opacity: .4; }
 <div class="panel focus">
   <h3>Current Focus</h3>
   <ul>
-    <li>Memory Bank initialization — capturing baseline project state from README.md.</li>
-    <li>No active code-change task in progress.</li>
+    <li>All 15 planned fixes implemented and verified against the live selassie cluster (3 servers v1.35.0+rke2r3, 3 workers v1.35.4+rke2r1) in --check mode. Four check-mode bugs found and fixed during verification.</li>
+    <li>Ready for a real upgrade run when operator approves. Target version would be v1.36.2+rke2r1 (latest from GitHub API).</li>
   </ul>
 </div>
 
 <div class="panel changes">
   <h3>Recent Changes</h3>
   <ul>
+    <li><strong>Phase 0 (P0 bugs):</strong> #17 reboot now gated on /var/run/reboot-required; #1 alt stat path fixed to /usr/lib/systemd/system; #4 drain flags templated from vars (+drain_delete_emptydir_data added); #5 service_start_timeout removed from playbook, role defaults, and README.</li>
+    <li><strong>Phase 1 (P1 robustness):</strong> New rke2_preflight role (#9) with kubectl reachability, group, server-Ready, and inventory/hostname match checks (#2, strict by default). rescue block in rke2_node_restore (#3) emits remediation guidance without auto-uncordoning. Pod readiness (#6) now requires Running/Succeeded. any_errors_fatal on server play (#12). Post-upgrade version assertion (#10) compares kubeletVersion prefix.</li>
+    <li><strong>Phase 2 (P2 hygiene):</strong> curl|jq replaced with uri module + optional github_token (#11); jq removed from README target requirements and troubleshooting. Downgrade guard (#8) with allow_downgrade flag. rke2_prepare (#7) now runs after version check, gated on skip flag with prepare_always_runs opt-in.</li>
+    <li><strong>Phase 3 (P3 polish):</strong> Shared vars moved to group_vars/rke2_cluster.yml (#13); playbook vars blocks trimmed to rke2_type only. Drain changed_when (#14) reports changed only on evicting/deleted output.</li>
+    <li><strong>Verification fixes (found during selassie dry run):</strong> (1) Moved node_name fact-setting from rke2_prepare into rke2_version_check since version check now runs first; rke2_prepare guards with <code>when: node_name is not defined</code>. (2) Added <code>check_mode: false</code> to all read-only kubectl/shell/uri tasks (preflight, version detection, restore health checks, post-upgrade verification) so they actually execute during --check mode instead of being skipped.</li>
+    <li><strong>Selassie inventory fixed:</strong> moved 3 workers from rke2_new_agents to rke2_agents (post-join step that was never done).</li>
     <li>Memory Bank created (productContext, activeContext, systemPatterns, decisionLog, progress).</li>
   </ul>
 </div>
@@ -53,8 +59,8 @@ ul li:empty::after { content: '—'; opacity: .4; }
 <div class="panel issues">
   <h3>Open Questions / Issues</h3>
   <ul>
-    <li>README notes <code>service_start_timeout</code> is defined in the playbook but unused by the install role — potential cleanup candidate.</li>
-    <li>jq is a hard dependency on target nodes; not auto-installed by the playbooks.</li>
+    <li><strong>Real upgrade not yet run:</strong> --check dry run passed but no actual cordon/drain/install/reboot was executed. Operator should approve a real run when ready.</li>
+    <li>Version skew on selassie: servers at v1.35.0+rke2r3, workers at v1.35.4+rke2r1. A real upgrade to v1.36.2+rke2r1 would bring all nodes to parity.</li>
   </ul>
 </div>
 
@@ -62,6 +68,26 @@ ul li:empty::after { content: '—'; opacity: .4; }
 <article class="log-entry">
   <time>2026-06-29 10:22:56</time>
   <p>Active Context initialized. Baseline focus set to Memory Bank bootstrap. Two known issues carried over from README (unused service_start_timeout var; jq manual install requirement).</p>
+</article>
+<article class="log-entry">
+  <time>2026-06-29 10:37:14</time>
+  <p>Completed code review of <code>upgrade_rke2.yml</code> and all 6 roles. Self-reviewed findings: retracted #15 (awk parsing is stable) and #16 (install changed_when is intentional); reframed #2 (node_name is display-only, real issue is inventory_hostname/k8s-node-name assumption) and #3 (leaving node cordoned on failure is correct, gap is operator guidance); surfaced new bug #17 (reboot module has no when guard — unconditional reboot every run). Wrote implementation plan to <code>.agent/plans/upgrade-playbook-improvements.html</code> with 14 fixes sequenced across 4 phases. Awaiting operator decisions on 5 open questions.</p>
+</article>
+<article class="log-entry">
+  <time>2026-06-29 10:55:00</time>
+  <p>Implemented all 15 plan fixes with documented defaults (remove service_start_timeout; prepare_always_runs=false; strict hostname check; any_errors_fatal on servers only). Created rke2_preflight role and group_vars/rke2_cluster.yml. Syntax-check passes for INI+YAML inventories; --check dry-run confirms preflight behaves correctly (strict fail on mismatch, warning mode proceeds). No live cluster available for full smoke test — flagged as verification gap.</p>
+</article>
+<article class="log-entry">
+  <time>2026-06-29 10:56:59</time>
+  <p>Updated README.md to reflect all implemented changes: intro mentions preflight/downgrade guard/version verification; Architecture adds rke2_preflight to role table + new Downgrade Protection subsection; Execution Flow reordered (version check before prepare, preflight first, post-upgrade version assertion last); new Preflight vars table + prepare_always_runs documented; Safety Features expanded (any_errors_fatal, downgrade guard, conditional reboot, rescue, preflight, post-upgrade version assertion); Rollback section documents allow_downgrade flag with warning; Troubleshooting adds preflight hostname-mismatch, downgrade-refused, and node-left-cordoned entries; Files tree includes rke2_preflight role, group_vars/rke2_cluster.yml, and ansible.cfg.</p>
+</article>
+<article class="log-entry">
+  <time>2026-06-29 11:13:57</time>
+  <p>Verified all fixes against the live selassie cluster (3 servers v1.35.0+rke2r3, 3 workers v1.35.4+rke2r1) in --check mode. Found and fixed 4 check-mode bugs (node_name ordering, read-only tasks skipped in --check). Downgrade guard verified. Post-upgrade version assertion verified.</p>
+</article>
+<article class="log-entry">
+  <time>2026-06-29 12:22:02</time>
+  <p>Real upgrade of selassie cluster completed. All 6 nodes now on v1.36.2+rke2r1. Incidents during run: (1) control-musa uncordon timed out due to API server recovering from upgrade — manually uncordoned after node stabilized; (2) control-baldwin RKE2 server crash-looped because stale v1.35.0 etcd process still held port 2379 after binary replaced — killed process and removed exited etcd pod sandbox, kubelet recreated it cleanly; (3) prepare_always_runs undefined in playbook when-clause — fixed by adding to group_vars; (4) Rook-Ceph mon PDB (0 allowed disruptions, Ceph stopped by operator) blocked drain of worker-biko — deleted PDB manually; (5) worker-biko kubelet version still showed v1.35.4 at playbook completion but updated to v1.36.2 within 30s. Ceph intentionally stopped by operator — restoration out of scope.</p>
 </article>
 </body>
 </html>

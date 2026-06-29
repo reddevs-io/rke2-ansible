@@ -12,3 +12,6 @@ drain_ignore_daemonsets: true
 
 # Whether to force drain
 drain_force: true
+
+# Whether to delete pods using an emptyDir volume during drain
+drain_delete_emptydir_data: true

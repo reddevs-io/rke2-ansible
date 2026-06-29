@@ -40,12 +40,34 @@ h1 { font-size: 1.75rem; font-weight: 700; margin-bottom: .25rem; }
     <div class="rationale"><strong>Rationale</strong>Persist project context, decisions, and progress across sessions in a structured, human-readable form to support future planning work.</div>
     <div class="details"><strong>Implementation Details</strong>Created 5 HTML files under <code>memory-bank/</code> (productContext, activeContext, systemPatterns, decisionLog, progress). Baseline content derived from README.md since no projectBrief.md was present.</div>
   </article>
+  <article class="decision-entry">
+    <time>2026-06-29 10:37:14</time>
+    <h3>Keep server and agent plays separate (reject DRY merge)</h3>
+    <div class="rationale"><strong>Rationale</strong>Merging the two plays in upgrade_rke2.yml into a single play targeting rke2_cluster would make server-before-agent ordering depend on inventory sequence, which is fragile and could break silently if inventory is reordered.</div>
+    <div class="details"><strong>Implementation Details</strong>Suggestion #13 downgraded from "merge plays" to "extract shared vars to group_vars/rke2_cluster.yml". The two-play structure stays as the explicit ordering enforcement mechanism.</div>
+  </article>
+  <article class="decision-entry">
+    <time>2026-06-29 10:37:14</time>
+    <h3>Do not auto-uncordon on failure (rescue block emits guidance only)</h3>
+    <div class="rationale"><strong>Rationale</strong>If a node fails to become Ready after upgrade, uncordoning would let the scheduler place workloads onto a broken node. Leaving it cordoned is the safer default; the gap was operator guidance, not automatic recovery.</div>
+    <div class="details"><strong>Implementation Details</strong>Fix #3 reframed: rke2_node_restore gets a block/rescue where the rescue prints an explicit remediation message (node remains cordoned, verify service health, then manually uncordon) and re-raises the failure. No auto-uncordon.</div>
+  </article>
+  <article class="decision-entry">
+    <time>2026-06-29 10:37:14</time>
+    <h3>any_errors_fatal on server play only, not agents</h3>
+    <div class="rationale"><strong>Rationale</strong>A failed server mid-run risks etcd quorum loss if the next server proceeds; a failed agent is recoverable. Applying any_errors_fatal to both would halt the run on any single agent failure, which is overly strict for worker pools.</div>
+    <div class="details"><strong>Implementation Details</strong>Fix #12 sets <code>any_errors_fatal: true</code> on the server play only. Agent play keeps current behavior. Open question flagged for operator in case they want agents to halt-on-first-failure too.</div>
+  </article>
 </div>
 
 <p class="log-section-header">Activity Log</p>
 <article class="log-entry">
   <time>2026-06-29 10:22:56</time>
   <p>Decision Log initialized with the Memory Bank creation decision.</p>
+</article>
+<article class="log-entry">
+  <time>2026-06-29 10:37:14</time>
+  <p>Recorded 3 review decisions: keep plays separate (reject DRY merge), no auto-uncordon on failure, any_errors_fatal on servers only. All captured in the upgrade improvements plan.</p>
 </article>
 </body>
 </html>

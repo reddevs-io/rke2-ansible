@@ -11,12 +11,17 @@
 
 - name: Drain node
   command: >
-    kubectl drain {{ inventory_hostname }} --ignore-daemonsets --force --delete-emptydir-data
+    kubectl drain {{ inventory_hostname }}
+    {{ drain_ignore_daemonsets | bool | ternary('--ignore-daemonsets', '') }}
+    {{ drain_force | bool | ternary('--force', '') }}
+    {{ drain_delete_emptydir_data | bool | ternary('--delete-emptydir-data', '') }}
     --timeout={{ drain_timeout }}s --grace-period={{ drain_grace_period }}
   delegate_to: localhost
   become: false
   register: drain_result
-  changed_when: true
+  changed_when: >-
+    'evicting' in (drain_result.stdout | default(''))
+    or 'deleted' in (drain_result.stdout | default(''))
   ignore_errors: true
   when: not (rke2_skip_upgrade | default(false))
 

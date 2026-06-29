@@ -1,36 +1,60 @@
 ---
 # tasks file for rke2_node_restore
 
-- name: Wait for node to be Ready
-  shell: >
-    kubectl get nodes {{ inventory_hostname }} -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}'
-  delegate_to: localhost
-  become: false
-  register: node_ready
-  until: node_ready.stdout == "True"
-  retries: "{{ health_check_retries }}"
-  delay: "{{ health_check_interval }}"
-  changed_when: false
-  when: not (rke2_skip_upgrade | default(false))
+- name: Restore node after upgrade
+  block:
+    - name: Wait for node to be Ready
+      shell: >
+        kubectl get nodes {{ inventory_hostname }} -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}'
+      delegate_to: localhost
+      become: false
+      register: node_ready
+      until: node_ready.stdout == "True"
+      retries: "{{ health_check_retries }}"
+      delay: "{{ health_check_interval }}"
+      changed_when: false
+      check_mode: false
 
-- name: Wait for all pods to be running on the node
-  shell: >
-    kubectl get pods --field-selector spec.nodeName={{ inventory_hostname }} -o jsonpath='{.items[*].status.phase}'
-  delegate_to: localhost
-  become: false
-  register: pod_phases
-  until: "'Failed' not in pod_phases.stdout"
-  retries: "{{ health_check_retries }}"
-  delay: "{{ health_check_interval }}"
-  changed_when: false
-  when: not (rke2_skip_upgrade | default(false))
+    - name: Wait for all pods to be running on the node
+      # Require every pod on the node to be Running or Succeeded. The previous
+      # check only failed on 'Failed' phases, which let the task pass while pods
+      # were still Pending/ContainerCreating. An empty result (no pods) is OK.
+      shell: >
+        kubectl get pods --field-selector spec.nodeName={{ inventory_hostname }} -o jsonpath='{.items[*].status.phase}'
+      delegate_to: localhost
+      become: false
+      register: pod_phases
+      until: >-
+        pod_phases.stdout | trim == ''
+        or (pod_phases.stdout | split(' ') | length
+            == pod_phases.stdout | regex_findall('Running|Succeeded') | length)
+      retries: "{{ health_check_retries }}"
+      delay: "{{ health_check_interval }}"
+      changed_when: false
+      check_mode: false
 
-- name: Uncordon node
-  command: kubectl uncordon {{ inventory_hostname }}
-  delegate_to: localhost
-  become: false
-  register: uncordon_result
-  changed_when: "'uncordoned' in uncordon_result.stdout"
+    - name: Uncordon node
+      command: kubectl uncordon {{ inventory_hostname }}
+      delegate_to: localhost
+      become: false
+      register: uncordon_result
+      changed_when: "'uncordoned' in uncordon_result.stdout"
+
+  rescue:
+    - name: Report node still cordoned
+      fail:
+        msg: >-
+          Node {{ inventory_hostname }} failed to become Ready or its pods did
+          not reach Running/Succeeded after the upgrade. The node remains
+          CORDONED — do not uncordon it until you have verified the
+          rke2-{{ rke2_type }} service is healthy:
+
+            journalctl -u rke2-{{ rke2_type }} -f
+
+          Once verified, manually uncordon:
+
+            kubectl uncordon {{ inventory_hostname }}
+
   when: not (rke2_skip_upgrade | default(false))
 
 - name: Display upgrade complete message
