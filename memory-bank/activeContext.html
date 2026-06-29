@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Active Context</title>
+<style>
+:root {
+  --bg: #0f1117; --surface: #1a1d2e; --surface-2: #232640;
+  --border: #2d3652; --text: #c9d1d9; --text-dim: #8b949e;
+  --blue: #4A90D9; --green: #2ECC71; --orange: #E8A838;
+  --red: #E85D4A; --purple: #7B68EE;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; max-width: 960px; margin: 0 auto; padding: 2rem; }
+h1 { font-size: 1.75rem; font-weight: 700; margin-bottom: .25rem; }
+.meta { color: var(--text-dim); font-size: .85rem; margin-bottom: 1.5rem; }
+ul { list-style: none; padding: 0; }
+ul li { padding: .4rem .75rem; margin-bottom: .35rem; border-radius: 6px; border-left: 3px solid var(--border); background: rgba(255,255,255,.03); }
+ul li:empty::after { content: '—'; opacity: .4; }
+.panel { background: var(--surface); border-radius: 10px; padding: 1.25rem; margin-bottom: 1rem; }
+.panel.focus   { border-left: 4px solid var(--blue); }
+.panel.changes { border-left: 4px solid var(--green); }
+.panel.issues  { border-left: 4px solid var(--red); }
+.panel h3 { font-size: .8rem; text-transform: uppercase; letter-spacing: .08em; margin-bottom: .75rem; }
+.panel.focus   h3 { color: var(--blue); }
+.panel.changes h3 { color: var(--green); }
+.panel.issues  h3 { color: var(--red); }
+.log-section-header { margin-top: 3rem; padding-bottom: .4rem; border-bottom: 1px solid var(--border); color: var(--text-dim); font-size: .85rem; text-transform: uppercase; letter-spacing: .08em; }
+.log-entry { margin-top: 1rem; padding: 1rem; background: var(--surface); border-radius: 8px; border-left: 3px solid var(--purple); }
+.log-entry time { font-size: .8rem; color: var(--text-dim); display: block; margin-bottom: .25rem; font-family: monospace; }
+.log-entry p { font-size: .95rem; }
+</style>
+</head>
+<body>
+<h1>Active Context</h1>
+<p class="meta">Tracks current status, recent changes, and open questions. Last updated: 2026-06-29 10:22:56</p>
+
+<div class="panel focus">
+  <h3>Current Focus</h3>
+  <ul>
+    <li>Memory Bank initialization — capturing baseline project state from README.md.</li>
+    <li>No active code-change task in progress.</li>
+  </ul>
+</div>
+
+<div class="panel changes">
+  <h3>Recent Changes</h3>
+  <ul>
+    <li>Memory Bank created (productContext, activeContext, systemPatterns, decisionLog, progress).</li>
+  </ul>
+</div>
+
+<div class="panel issues">
+  <h3>Open Questions / Issues</h3>
+  <ul>
+    <li>README notes <code>service_start_timeout</code> is defined in the playbook but unused by the install role — potential cleanup candidate.</li>
+    <li>jq is a hard dependency on target nodes; not auto-installed by the playbooks.</li>
+  </ul>
+</div>
+
+<p class="log-section-header">Activity Log</p>
+<article class="log-entry">
+  <time>2026-06-29 10:22:56</time>
+  <p>Active Context initialized. Baseline focus set to Memory Bank bootstrap. Two known issues carried over from README (unused service_start_timeout var; jq manual install requirement).</p>
+</article>
+</body>
+</html>

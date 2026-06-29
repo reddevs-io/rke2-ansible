@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Decision Log</title>
+<style>
+:root {
+  --bg: #0f1117; --surface: #1a1d2e; --surface-2: #232640;
+  --border: #2d3652; --text: #c9d1d9; --text-dim: #8b949e;
+  --blue: #4A90D9; --green: #2ECC71; --orange: #E8A838;
+  --red: #E85D4A; --purple: #7B68EE;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; max-width: 960px; margin: 0 auto; padding: 2rem; }
+h1 { font-size: 1.75rem; font-weight: 700; margin-bottom: .25rem; }
+.meta { color: var(--text-dim); font-size: .85rem; margin-bottom: 1.5rem; }
+.timeline { position: relative; padding-left: 1.5rem; margin-top: 1rem; }
+.timeline::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 2px; background: var(--border); }
+.decision-entry { position: relative; margin-bottom: 1.5rem; background: var(--surface); border-radius: 10px; padding: 1.25rem 1.25rem 1.25rem 1.5rem; }
+.decision-entry::before { content: ''; position: absolute; left: -1.93rem; top: 1.4rem; width: 10px; height: 10px; border-radius: 50%; background: var(--blue); border: 2px solid var(--bg); }
+.decision-entry time { font-size: .78rem; color: var(--text-dim); font-family: monospace; display: block; margin-bottom: .4rem; }
+.decision-entry h3 { font-size: 1rem; margin-bottom: .75rem; }
+.decision-entry .rationale { font-size: .9rem; color: var(--text-dim); margin-bottom: .5rem; }
+.decision-entry .rationale strong, .decision-entry .details strong { color: var(--text); font-size: .78rem; text-transform: uppercase; letter-spacing: .06em; display: block; margin-bottom: .25rem; }
+.decision-entry .details { font-size: .9rem; color: var(--text-dim); }
+.log-section-header { margin-top: 3rem; padding-bottom: .4rem; border-bottom: 1px solid var(--border); color: var(--text-dim); font-size: .85rem; text-transform: uppercase; letter-spacing: .08em; }
+.log-entry { margin-top: 1rem; padding: 1rem; background: var(--surface); border-radius: 8px; border-left: 3px solid var(--purple); }
+.log-entry time { font-size: .8rem; color: var(--text-dim); display: block; margin-bottom: .25rem; font-family: monospace; }
+.log-entry p { font-size: .95rem; }
+</style>
+</head>
+<body>
+<h1>Decision Log</h1>
+<p class="meta">Records architectural and implementation decisions. Each entry is a timestamped card. Last updated: 2026-06-29 10:22:56</p>
+
+<div class="timeline">
+  <article class="decision-entry">
+    <time>2026-06-29 10:22:56</time>
+    <h3>Initialize Memory Bank in HTML format</h3>
+    <div class="rationale"><strong>Rationale</strong>Persist project context, decisions, and progress across sessions in a structured, human-readable form to support future planning work.</div>
+    <div class="details"><strong>Implementation Details</strong>Created 5 HTML files under <code>memory-bank/</code> (productContext, activeContext, systemPatterns, decisionLog, progress). Baseline content derived from README.md since no projectBrief.md was present.</div>
+  </article>
+</div>
+
+<p class="log-section-header">Activity Log</p>
+<article class="log-entry">
+  <time>2026-06-29 10:22:56</time>
+  <p>Decision Log initialized with the Memory Bank creation decision.</p>
+</article>
+</body>
+</html>

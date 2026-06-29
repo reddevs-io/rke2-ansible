@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>System Patterns</title>
+<style>
+:root {
+  --bg: #0f1117; --surface: #1a1d2e; --surface-2: #232640;
+  --border: #2d3652; --text: #c9d1d9; --text-dim: #8b949e;
+  --blue: #4A90D9; --green: #2ECC71; --orange: #E8A838;
+  --red: #E85D4A; --purple: #7B68EE;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; max-width: 960px; margin: 0 auto; padding: 2rem; }
+h1 { font-size: 1.75rem; font-weight: 700; margin-bottom: .25rem; }
+h2 { font-size: 1rem; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--text-dim); margin: 2rem 0 .75rem; border-bottom: 1px solid var(--border); padding-bottom: .4rem; }
+.meta { color: var(--text-dim); font-size: .85rem; margin-bottom: 1.5rem; }
+.pattern-card { background: var(--surface); border-radius: 8px; padding: 1rem; margin-bottom: .75rem; }
+.pattern-card .category-badge { display: inline-block; font-size: .7rem; font-weight: 700; padding: .15rem .5rem; border-radius: 4px; text-transform: uppercase; letter-spacing: .06em; margin-bottom: .5rem; }
+.pattern-card.coding .category-badge   { background: rgba(74,144,217,.2); color: var(--blue); }
+.pattern-card.arch .category-badge     { background: rgba(123,104,238,.2); color: var(--purple); }
+.pattern-card.testing .category-badge  { background: rgba(46,204,113,.2); color: var(--green); }
+.pattern-card pre { background: var(--surface-2); border-radius: 6px; padding: .75rem; margin-top: .5rem; font-size: .8rem; overflow-x: auto; }
+.log-section-header { margin-top: 3rem; padding-bottom: .4rem; border-bottom: 1px solid var(--border); color: var(--text-dim); font-size: .85rem; text-transform: uppercase; letter-spacing: .08em; }
+.log-entry { margin-top: 1rem; padding: 1rem; background: var(--surface); border-radius: 8px; border-left: 3px solid var(--purple); }
+.log-entry time { font-size: .8rem; color: var(--text-dim); display: block; margin-bottom: .25rem; font-family: monospace; }
+.log-entry p { font-size: .95rem; }
+</style>
+</head>
+<body>
+<h1>System Patterns</h1>
+<p class="meta">Recurring patterns and standards. Optional but recommended. Last updated: 2026-06-29 10:22:56</p>
+
+<h2>Coding Patterns</h2>
+<div class="pattern-card coding">
+  <span class="category-badge">Code</span>
+  <p>Role-based modular structure: each concern (prepare, version_check, node_drain, install, node_restore, agent_join) is a self-contained Ansible role under <code>roles/</code> with <code>defaults/main.yml</code> + <code>tasks/main.yml</code>.</p>
+</div>
+<div class="pattern-card coding">
+  <span class="category-badge">Code</span>
+  <p>Control-plane (kubectl) tasks run with <code>delegate_to: localhost</code> / <code>run_once</code> semantics; node tasks run against the target host over SSH.</p>
+</div>
+<div class="pattern-card coding">
+  <span class="category-badge">Code</span>
+  <p>All tunables exposed as role defaults with conservative production values; overridable via <code>-e</code>, inventory vars, or <code>@vars.yml</code>.</p>
+</div>
+
+<h2>Architectural Patterns</h2>
+<div class="pattern-card arch">
+  <span class="category-badge">Architecture</span>
+  <p>Sequential rolling upgrades via <code>serial: 1</code> — servers first, then agents — to preserve quorum and workload availability.</p>
+</div>
+<div class="pattern-card arch">
+  <span class="category-badge">Architecture</span>
+  <p>Gated pipeline: a <code>skip_upgrade</code> fact set by <code>rke2_version_check</code> conditionally skips drain/install/restore roles when the target version is already installed.</p>
+</div>
+<div class="pattern-card arch">
+  <span class="category-badge">Architecture</span>
+  <p>Fail-fast safety: health checks (service active, node Ready, pods running) gate progression to the next node; any failure halts the run.</p>
+</div>
+<div class="pattern-card arch">
+  <span class="category-badge">Architecture</span>
+  <p>Worker-join flow keeps version parity by auto-detecting the installed RKE2 version from the first server rather than requiring the operator to specify it.</p>
+</div>
+
+<h2>Testing Patterns</h2>
+<div class="pattern-card testing">
+  <span class="category-badge">Testing</span>
+  <p>Use <code>--check</code> (dry run) mode to validate the play without making changes; use <code>-v</code> / <code>-vvv</code> for progressive debug verbosity.</p>
+</div>
+<div class="pattern-card testing">
+  <span class="category-badge">Testing</span>
+  <p>Rollback strategy = re-run the playbook pinning <code>rke2_version</code> to a previous release tag (downgrade path).</p>
+</div>
+
+<p class="log-section-header">Activity Log</p>
+<article class="log-entry">
+  <time>2026-06-29 10:22:56</time>
+  <p>System Patterns initialized with baseline coding, architectural, and testing patterns derived from README.md.</p>
+</article>
+</body>
+</html>

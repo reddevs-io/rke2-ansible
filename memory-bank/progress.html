@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Progress</title>
+<style>
+:root {
+  --bg: #0f1117; --surface: #1a1d2e; --surface-2: #232640;
+  --border: #2d3652; --text: #c9d1d9; --text-dim: #8b949e;
+  --blue: #4A90D9; --green: #2ECC71; --orange: #E8A838;
+  --red: #E85D4A; --purple: #7B68EE;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; max-width: 960px; margin: 0 auto; padding: 2rem; }
+h1 { font-size: 1.75rem; font-weight: 700; margin-bottom: .25rem; }
+h2 { font-size: 1rem; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--text-dim); margin: 2rem 0 .75rem; border-bottom: 1px solid var(--border); padding-bottom: .4rem; }
+.meta { color: var(--text-dim); font-size: .85rem; margin-bottom: 1.5rem; }
+.stats-bar { display: flex; gap: 1rem; margin: 1.5rem 0; }
+.stat { flex: 1; background: var(--surface); border-radius: 10px; padding: 1.25rem; text-align: center; }
+.stat.done   { border-top: 3px solid var(--green); }
+.stat.active { border-top: 3px solid var(--orange); }
+.stat.next   { border-top: 3px solid var(--blue); }
+.count { display: block; font-size: 2.25rem; font-weight: 700; }
+.label { font-size: .75rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: .05em; }
+.task-table { width: 100%; border-collapse: collapse; margin-top: .75rem; }
+.task-table th { text-align: left; padding: .6rem .75rem; background: var(--surface-2); font-size: .8rem; text-transform: uppercase; letter-spacing: .06em; color: var(--text-dim); }
+.task-table td { padding: .6rem .75rem; border-bottom: 1px solid var(--border); }
+.task-table tr:hover td { background: var(--surface); }
+.badge { display: inline-block; padding: .2rem .6rem; border-radius: 20px; font-size: .75rem; font-weight: 600; }
+.badge.done   { background: rgba(46,204,113,.15); color: var(--green); }
+.badge.active { background: rgba(232,168,56,.15); color: var(--orange); }
+.badge.next   { background: rgba(74,144,217,.15); color: var(--blue); }
+.log-section-header { margin-top: 3rem; padding-bottom: .4rem; border-bottom: 1px solid var(--border); color: var(--text-dim); font-size: .85rem; text-transform: uppercase; letter-spacing: .08em; }
+.log-entry { margin-top: 1rem; padding: 1rem; background: var(--surface); border-radius: 8px; border-left: 3px solid var(--purple); }
+.log-entry time { font-size: .8rem; color: var(--text-dim); display: block; margin-bottom: .25rem; font-family: monospace; }
+.log-entry p { font-size: .95rem; }
+</style>
+</head>
+<body>
+<h1>Progress</h1>
+<p class="meta">Tracks project progress. Last updated: 2026-06-29 10:22:56</p>
+
+<div class="stats-bar">
+  <div class="stat done">
+    <span class="count" id="count-done">1</span>
+    <span class="label">Completed</span>
+  </div>
+  <div class="stat active">
+    <span class="count" id="count-active">0</span>
+    <span class="label">In Progress</span>
+  </div>
+  <div class="stat next">
+    <span class="count" id="count-next">0</span>
+    <span class="label">Next Steps</span>
+  </div>
+</div>
+
+<h2>Tasks</h2>
+<table class="task-table">
+  <thead><tr><th>Task</th><th>Status</th><th>Date</th></tr></thead>
+  <tbody>
+    <tr>
+      <td>Memory Bank initialization</td>
+      <td><span class="badge done">Done</span></td>
+      <td>2026-06-29</td>
+    </tr>
+  </tbody>
+</table>
+
+<p class="log-section-header">Activity Log</p>
+<article class="log-entry">
+  <time>2026-06-29 10:22:56</time>
+  <p>Progress tracker initialized. Baseline: Memory Bank setup complete. No active code task; no scheduled next steps yet.</p>
+</article>
+</body>
+</html>

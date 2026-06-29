@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Product Context</title>
+<style>
+:root {
+  --bg: #0f1117; --surface: #1a1d2e; --surface-2: #232640;
+  --border: #2d3652; --text: #c9d1d9; --text-dim: #8b949e;
+  --blue: #4A90D9; --green: #2ECC71; --orange: #E8A838;
+  --red: #E85D4A; --purple: #7B68EE;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; max-width: 960px; margin: 0 auto; padding: 2rem; }
+h1 { font-size: 1.75rem; font-weight: 700; margin-bottom: .25rem; }
+h2 { font-size: 1rem; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--text-dim); margin: 2rem 0 .75rem; border-bottom: 1px solid var(--border); padding-bottom: .4rem; }
+.meta { color: var(--text-dim); font-size: .85rem; margin-bottom: 1.5rem; }
+ul { list-style: none; padding: 0; }
+ul li { padding: .4rem .75rem; margin-bottom: .35rem; background: var(--surface); border-radius: 6px; border-left: 3px solid var(--border); }
+ul li:empty::after { content: '—'; opacity: .4; }
+.pill-list { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .5rem; }
+.pill { background: var(--surface-2); border: 1px solid var(--border); border-radius: 20px; padding: .3rem .9rem; font-size: .85rem; color: var(--text); }
+.arch-card { background: var(--surface); border-radius: 8px; padding: .9rem 1rem; margin-bottom: .5rem; border-left: 3px solid var(--purple); font-size: .9rem; }
+.log-section-header { margin-top: 3rem; padding-bottom: .4rem; border-bottom: 1px solid var(--border); color: var(--text-dim); font-size: .85rem; text-transform: uppercase; letter-spacing: .08em; }
+.log-entry { margin-top: 1rem; padding: 1rem; background: var(--surface); border-radius: 8px; border-left: 3px solid var(--purple); }
+.log-entry time { font-size: .8rem; color: var(--text-dim); display: block; margin-bottom: .25rem; font-family: monospace; }
+.log-entry p { font-size: .95rem; }
+</style>
+</head>
+<body>
+<h1>Product Context</h1>
+<p class="meta">High-level project overview. Initialized from projectBrief.md if provided. Last updated: 2026-06-29 10:22:56</p>
+
+<h2>Project Goal</h2>
+<ul>
+  <li>Provide a robust, automated Ansible-based workflow for upgrading RKE2 Kubernetes clusters in production with minimal risk and zero cluster downtime.</li>
+  <li>Support sequential, one-at-a-time node upgrades with full health verification between nodes.</li>
+  <li>Extend existing clusters by safely joining new worker (agent) nodes with version parity to the servers.</li>
+</ul>
+
+<h2>Key Features</h2>
+<div class="pill-list">
+  <span class="pill">Sequential node upgrades (servers then agents)</span>
+  <span class="pill">Skip logic when target version already installed</span>
+  <span class="pill">Node cordon + drain with configurable timeouts</span>
+  <span class="pill">Post-upgrade health & pod readiness checks</span>
+  <span class="pill">System prep (apt update / dist-upgrade / reboot)</span>
+  <span class="pill">Add worker nodes playbook (rke2_agent_join)</span>
+  <span class="pill">kubectl-driven verification from control node</span>
+  <span class="pill">Rollback via pinning rke2_version</span>
+  <span class="pill">INI and YAML inventory support</span>
+</div>
+
+<h2>Overall Architecture</h2>
+<div class="arch-card">Role-based modular Ansible design. Two top-level playbooks: <code>upgrade_rke2.yml</code> (cluster upgrade) and <code>add_workers_rke2.yml</code> (join new agents). Inventory split into <code>rke2_servers</code>, <code>rke2_agents</code>, and <code>rke2_new_agents</code> groups.</div>
+<div class="arch-card">Upgrade pipeline = 5 sequential roles per node: rke2_prepare → rke2_version_check → rke2_node_drain → rke2_install → rke2_node_restore. A <code>skip_upgrade</code> fact gates the last three roles when the installed version already equals the target.</div>
+<div class="arch-card">Control-node operations (cordon, drain, readiness, uncordon) run against localhost using kubectl; node operations (apt, install, service restart) run over SSH against the target host.</div>
+<div class="arch-card">Worker-join flow: preflight validation → auto-detect version from first server → write /etc/rancher/rke2/config.yaml → install agent → enable rke2-agent → optional post-join verification.</div>
+
+<p class="log-section-header">Activity Log</p>
+<article class="log-entry">
+  <time>2026-06-29 10:22:56</time>
+  <p>Memory Bank initialized. Product context populated from README.md: goals, key features, and overall architecture captured for the RKE2 Ansible upgrade + worker-join project.</p>
+</article>
+</body>
+</html>
