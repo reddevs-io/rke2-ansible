@@ -1,117 +1,65 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-<meta charset="UTF-8">
-<title>Progress</title>
-<style>
-:root {
-  --bg: #0f1117; --surface: #1a1d2e; --surface-2: #232640;
-  --border: #2d3652; --text: #c9d1d9; --text-dim: #8b949e;
-  --blue: #4A90D9; --green: #2ECC71; --orange: #E8A838;
-  --red: #E85D4A; --purple: #7B68EE;
-}
-* { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; max-width: 960px; margin: 0 auto; padding: 2rem; }
-h1 { font-size: 1.75rem; font-weight: 700; margin-bottom: .25rem; }
-h2 { font-size: 1rem; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--text-dim); margin: 2rem 0 .75rem; border-bottom: 1px solid var(--border); padding-bottom: .4rem; }
-.meta { color: var(--text-dim); font-size: .85rem; margin-bottom: 1.5rem; }
-.stats-bar { display: flex; gap: 1rem; margin: 1.5rem 0; }
-.stat { flex: 1; background: var(--surface); border-radius: 10px; padding: 1.25rem; text-align: center; }
-.stat.done   { border-top: 3px solid var(--green); }
-.stat.active { border-top: 3px solid var(--orange); }
-.stat.next   { border-top: 3px solid var(--blue); }
-.count { display: block; font-size: 2.25rem; font-weight: 700; }
-.label { font-size: .75rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: .05em; }
-.task-table { width: 100%; border-collapse: collapse; margin-top: .75rem; }
-.task-table th { text-align: left; padding: .6rem .75rem; background: var(--surface-2); font-size: .8rem; text-transform: uppercase; letter-spacing: .06em; color: var(--text-dim); }
-.task-table td { padding: .6rem .75rem; border-bottom: 1px solid var(--border); }
-.task-table tr:hover td { background: var(--surface); }
-.badge { display: inline-block; padding: .2rem .6rem; border-radius: 20px; font-size: .75rem; font-weight: 600; }
-.badge.done   { background: rgba(46,204,113,.15); color: var(--green); }
-.badge.active { background: rgba(232,168,56,.15); color: var(--orange); }
-.badge.next   { background: rgba(74,144,217,.15); color: var(--blue); }
-.log-section-header { margin-top: 3rem; padding-bottom: .4rem; border-bottom: 1px solid var(--border); color: var(--text-dim); font-size: .85rem; text-transform: uppercase; letter-spacing: .08em; }
-.log-entry { margin-top: 1rem; padding: 1rem; background: var(--surface); border-radius: 8px; border-left: 3px solid var(--purple); }
-.log-entry time { font-size: .8rem; color: var(--text-dim); display: block; margin-bottom: .25rem; font-family: monospace; }
-.log-entry p { font-size: .95rem; }
+  <head>
+    <meta charset="UTF-8">
+    <meta content="width=device-width, initial-scale=1" name="viewport">
+    <title>Progress</title>
+    <link href="memory-bank.css" rel="stylesheet">
+    <style>
+:root{--accent:var(--green);--accent-soft:rgba(61,220,145,.14);}
 </style>
-</head>
-<body>
-<h1>Progress</h1>
-<p class="meta">Tracks project progress. Last updated: 2026-06-29 10:22:56</p>
-
-<div class="stats-bar">
-  <div class="stat done">
-    <span class="count" id="count-done">6</span>
+  </head>
+  <body>
+    <header class="page-head">
+      <p class="eyebrow">Memory Bank / Progress</p>
+      <h1>Progress</h1>
+      <p class="meta">What's done, in flight, and up next · Updated 2026-09-07T16:08:25.849328Z</p>
+    </header>
+    <div class="stats-bar">
+      <div class="stat done">
+    <span class="count" id="count-done">8</span>
     <span class="label">Completed</span>
   </div>
-  <div class="stat active">
+      <div class="stat active">
     <span class="count" id="count-active">0</span>
     <span class="label">In Progress</span>
   </div>
-  <div class="stat next">
+      <div class="stat next">
     <span class="count" id="count-next">1</span>
     <span class="label">Next Steps</span>
   </div>
-</div>
-
-<h2>Tasks</h2>
-<table class="task-table">
-  <thead><tr><th>Task</th><th>Status</th><th>Date</th></tr></thead>
-  <tbody>
-    <tr>
-      <td>Memory Bank initialization</td>
-      <td><span class="badge done">Done</span></td>
-      <td>2026-06-29</td>
-    </tr>
-    <tr>
-      <td>Code review of upgrade_rke2.yml + 6 roles (14 findings, 2 retracted, 1 new)</td>
-      <td><span class="badge done">Done</span></td>
-      <td>2026-06-29</td>
-    </tr>
-    <tr>
-      <td>Write implementation plan to .agent/plans/upgrade-playbook-improvements.html</td>
-      <td><span class="badge done">Done</span></td>
-      <td>2026-06-29</td>
-    </tr>
-    <tr>
-      <td>Phase 0 (P0 bugs: #17, #1, #4, #5) implementation</td>
-      <td><span class="badge done">Done</span></td>
-      <td>2026-06-29</td>
-    </tr>
-    <tr>
-      <td>Phase 1 (P1 robustness: #9, #2, #3, #6, #12, #10) implementation</td>
-      <td><span class="badge done">Done</span></td>
-      <td>2026-06-29</td>
-    </tr>
-    <tr>
-      <td>Phase 2 (P2 hygiene: #11, #8, #7) + Phase 3 (P3 polish: #13, #14) implementation</td>
-      <td><span class="badge done">Done</span></td>
-      <td>2026-06-29</td>
-    </tr>
-  </tbody>
-</table>
-
-<p class="log-section-header">Activity Log</p>
-<article class="log-entry">
-  <time>2026-06-29 10:22:56</time>
-  <p>Progress tracker initialized. Baseline: Memory Bank setup complete. No active code task; no scheduled next steps yet.</p>
-</article>
-<article class="log-entry">
-  <time>2026-06-29 10:37:14</time>
-  <p>Completed code review and wrote implementation plan (14 fixes, 4 phases). Plan at <code>.agent/plans/upgrade-playbook-improvements.html</code>. Currently blocked on 5 operator decisions before Phase 0 implementation can begin.</p>
-</article>
-<article class="log-entry">
-  <time>2026-06-29 10:55:00</time>
-  <p>All 15 plan fixes implemented (Phase 0–3). Syntax-check passes for INI+YAML inventories. --check dry-run confirms preflight role works (strict hostname check fails fast; warning mode proceeds). No live cluster for full smoke test — flagged as verification gap. Next: README files section needs update for new rke2_preflight role and group_vars file.</p>
-</article>
-<article class="log-entry">
-  <time>2026-06-29 11:13:57</time>
-  <p>Live-cluster verification on selassie (6 nodes) completed in --check mode. Found and fixed 4 check-mode bugs. Downgrade guard verified. Post-upgrade version assertion verified. Ready for real upgrade run.</p>
-</article>
-<article class="log-entry">
-  <time>2026-06-29 12:22:02</time>
-  <p>Real upgrade of selassie cluster fully complete. All 6 nodes Ready on v1.36.2+rke2r1. 5 incidents handled during run: API timeout on uncordon, stale etcd process on control-baldwin, prepare_always_runs group_vars fix, Ceph PDB blocking drain (operator stopped Ceph), worker-biko kubelet delayed registration.</p>
-</article>
-</body>
+    </div>
+    <h2>Milestones</h2>
+    <table class="milestone-table">
+      <thead>
+        <tr><th>Milestone</th><th>Status</th><th>Updated</th></tr>
+      </thead>
+      <tbody>
+        <tr class="placeholder"><td>—</td><td><span class="badge next">Planned</span></td><td>—</td></tr>
+      </tbody>
+    </table>
+    <h2>Tasks</h2>
+    <table class="task-table">
+      <thead>
+        <tr><th>Task</th><th>Status</th><th>Milestone</th><th>Date</th></tr>
+      </thead>
+      <tbody>
+        <tr data-task-id="memory-bank-initialization"><td>Memory Bank initialization</td><td><span class="badge done">Completed</span></td><td class="cell-milestone">—</td><td>—</td></tr>
+        <tr data-task-id="code-review-of-upgrade-rke2-yml-6-roles-14-findings-2-retracted-1-new"><td>Code review of upgrade_rke2.yml + 6 roles (14 findings, 2 retracted, 1 new)</td><td><span class="badge done">Completed</span></td><td class="cell-milestone">—</td><td>—</td></tr>
+        <tr data-task-id="write-implementation-plan-to-agent-plans-upgrade-playbook-improvements-html"><td>Write implementation plan to .agent/plans/upgrade-playbook-improvements.html</td><td><span class="badge done">Completed</span></td><td class="cell-milestone">—</td><td>—</td></tr>
+        <tr data-task-id="phase-0-p0-bugs-17-1-4-5-implementation"><td>Phase 0 (P0 bugs: #17, #1, #4, #5) implementation</td><td><span class="badge done">Completed</span></td><td class="cell-milestone">—</td><td>—</td></tr>
+        <tr data-task-id="phase-1-p1-robustness-9-2-3-6-12-10-implementation"><td>Phase 1 (P1 robustness: #9, #2, #3, #6, #12, #10) implementation</td><td><span class="badge done">Completed</span></td><td class="cell-milestone">—</td><td>—</td></tr>
+        <tr data-task-id="phase-2-p2-hygiene-11-8-7-phase-3-p3-polish-13-14-implementation"><td>Phase 2 (P2 hygiene: #11, #8, #7) + Phase 3 (P3 polish: #13, #14) implementation</td><td><span class="badge done">Completed</span></td><td class="cell-milestone">—</td><td>—</td></tr>
+        <tr data-task-id="live-cluster-verification-on-selassie-6-nodes-in-check-mode-with-4-check-mode-bug-fixes"><td>Live-cluster verification on selassie (6 nodes) in --check mode with 4 check-mode bug fixes</td><td><span class="badge done">Completed</span></td><td class="cell-milestone">—</td><td>—</td></tr>
+        <tr data-task-id="real-upgrade-of-selassie-cluster-to-v1-36-2-rke2r1-all-6-nodes-ready"><td>Real upgrade of selassie cluster to v1.36.2+rke2r1 (all 6 nodes Ready)</td><td><span class="badge done">Completed</span></td><td class="cell-milestone">—</td><td>—</td></tr>
+        <tr data-task-id="fold-the-selassie-upgrade-incidents-uncordon-retry-while-api-server-recovers-st-ced001e055aa123d"><td>Fold the selassie upgrade incidents (uncordon retry while API server recovers, stale etcd process on port 2379, zero-disruption PDB blocking drain) back into the playbooks</td><td><span class="badge next">Upcoming</span></td><td class="cell-milestone">—</td><td>—</td></tr>
+      </tbody>
+    </table>
+    <p class="log-section-header">Activity Log</p>
+    <script id="mb-counts">document.addEventListener('DOMContentLoaded',function(){
+  [['count-done','done'],['count-active','active'],['count-next','next']].forEach(function(p){
+    var el=document.getElementById(p[0]);
+    if(el)el.textContent=document.querySelectorAll('.task-table tr:not(.placeholder) .badge.'+p[1]).length;
+  });});</script>
+  </body>
 </html>

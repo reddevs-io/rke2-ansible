@@ -1,0 +1,2 @@
+# Memory Bank journal events merge additively; canonical HTML uses normal merging.
+memory-bank/journal/*.html merge=union
