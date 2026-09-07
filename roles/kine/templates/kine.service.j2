@@ -1,0 +1,21 @@
+# {{ ansible_managed }}
+[Unit]
+Description=kine etcd shim (pool-capped) for RKE2
+Before=rke2-server.service
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+EnvironmentFile={{ kine_env_file }}
+ExecStart={{ kine_binary }} \
+  --endpoint "${KINE_ENDPOINT}" \
+  --listen-address {{ kine_listen_address }} \
+  --datastore-max-open-connections {{ kine_max_open_connections }} \
+  --datastore-max-idle-connections {{ kine_max_idle_connections }} \
+  --datastore-connection-max-lifetime {{ kine_connection_max_lifetime }}
+Restart=always
+RestartSec=2
+OOMScoreAdjust=-900
+
+[Install]
+WantedBy=multi-user.target

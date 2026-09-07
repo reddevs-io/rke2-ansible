@@ -1,0 +1,50 @@
+---
+# defaults file for rke2_server_join
+# Writes /etc/rancher/rke2/config.yaml for a server (control plane) node that
+# joins an existing cluster, plus (when rke2_private_iface is set) the Canal
+# HelmChartConfig that pins flannel to that interface. The playbook installs
+# RKE2 afterwards. Nothing here is specific to a cloud provider.
+
+rke2_token: ""
+rke2_server_url: ""
+rke2_config_dir: /etc/rancher/rke2
+rke2_config_file: /etc/rancher/rke2/config.yaml
+rke2_manifests_dir: /var/lib/rancher/rke2/server/manifests
+
+# Private address of this node (inventory host var). Falls back to the first
+# address on rke2_private_iface when that is set.
+rke2_node_ip: ""
+# Interface carrying the node-to-node network; used for the IP fallback and
+# the Canal/flannel iface pin. Leave empty to skip both.
+rke2_private_iface: ""
+
+rke2_tls_sans: []
+# Packaged components to disable (RKE2 < 1.36 lists the ingress here).
+rke2_disable_components: []
+# RKE2 >= 1.36: ingress controller to deploy (none, traefik, ingress-nginx).
+# Empty leaves the RKE2 default (traefik on 1.36+).
+rke2_ingress_controller: ""
+rke2_node_taints:
+  - "CriticalAddonsOnly=true:NoExecute"
+rke2_write_kubeconfig_mode: "0644"
+
+# External datastore (kine shim or direct SQL URL). Empty = embedded etcd.
+rke2_datastore_endpoint: ""
+
+# Cloud provider integration (all optional, set in the inventory).
+# rke2_cloud_provider_name: "external" when a cloud-controller-manager runs in
+#   the cluster (kubelet gets cloud-provider=external); empty for none.
+# rke2_provider_id: explicit value for the kubelet provider-id argument, e.g.
+#   hcloud://12345 or openstack:///<uuid>.
+# rke2_provider_id_command: shell command run on the node that prints the
+#   provider ID when rke2_provider_id is empty, e.g. for Hetzner:
+#   curl -s http://169.254.169.254/hetzner/v1/metadata/instance-id | sed "s#^#hcloud://#"
+rke2_cloud_provider_name: ""
+rke2_provider_id: ""
+rke2_provider_id_command: ""
+
+rke2_extra_kubelet_args: []
+rke2_kube_scheduler_args:
+  - "bind-address=0.0.0.0"
+rke2_kube_controller_manager_args:
+  - "bind-address=0.0.0.0"

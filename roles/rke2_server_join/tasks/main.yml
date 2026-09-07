@@ -1,0 +1,93 @@
+---
+# tasks file for rke2_server_join
+
+- name: Validate required variables
+  assert:
+    that:
+      - rke2_token | length > 0
+      - rke2_server_url | length > 0
+      - rke2_server_url.startswith('https://')
+    fail_msg: >-
+      rke2_token and rke2_server_url (https://<lb>:9345) are required.
+    quiet: true
+
+- name: Resolve node private IP from {{ rke2_private_iface }}
+  set_fact:
+    rke2_node_ip: "{{ ansible_facts[rke2_private_iface]['ipv4']['address'] }}"
+  when:
+    - rke2_node_ip | length == 0
+    - rke2_private_iface | length > 0
+    - rke2_private_iface in ansible_facts
+    - ansible_facts[rke2_private_iface]['ipv4'] is defined
+
+- name: Fail if node private IP is unknown
+  fail:
+    msg: "Could not determine rke2_node_ip for {{ inventory_hostname }}; set it in the inventory."
+  when: rke2_node_ip | length == 0
+
+- name: Look up the provider ID with rke2_provider_id_command
+  shell: "{{ rke2_provider_id_command }}"
+  register: rke2_provider_id_lookup
+  changed_when: false
+  retries: 12
+  delay: 5
+  until: rke2_provider_id_lookup.rc == 0 and rke2_provider_id_lookup.stdout | trim | length > 0
+  when:
+    - rke2_provider_id | length == 0
+    - rke2_provider_id_command | length > 0
+
+- name: Set provider ID fact
+  set_fact:
+    rke2_provider_id: "{{ rke2_provider_id_lookup.stdout | trim }}"
+  when:
+    - rke2_provider_id | length == 0
+    - rke2_provider_id_lookup is not skipped
+
+- name: Refuse to overwrite an existing RKE2 server configuration
+  stat:
+    path: "{{ rke2_config_file }}"
+  register: rke2_existing_config
+
+- name: Fail if the node already has an RKE2 config
+  fail:
+    msg: >-
+      {{ rke2_config_file }} already exists on {{ inventory_hostname }}.
+      This role is for fresh nodes only; remove the file or use the upgrade playbook.
+  when:
+    - rke2_existing_config.stat.exists
+    - not (rke2_force_config | default(false) | bool)
+
+- name: Ensure RKE2 directories exist
+  file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0755"
+  loop:
+    - "{{ rke2_config_dir }}"
+    - "{{ rke2_manifests_dir }}"
+
+- name: Write RKE2 server config
+  template:
+    src: config.yaml.j2
+    dest: "{{ rke2_config_file }}"
+    mode: "0600"
+    owner: root
+    group: root
+  no_log: true
+
+- name: Pin Canal (flannel) to the private interface
+  template:
+    src: rke2-canal-config.yaml.j2
+    dest: "{{ rke2_manifests_dir }}/rke2-canal-config.yaml"
+    mode: "0644"
+  when: rke2_private_iface | length > 0
+
+- name: Display join configuration summary
+  debug:
+    msg:
+      - "node-name: {{ inventory_hostname }}"
+      - "node-ip: {{ rke2_node_ip }}"
+      - "server: {{ rke2_server_url }}"
+      - "cloud-provider: {{ rke2_cloud_provider_name | default('none', true) }}"
+      - "provider-id: {{ rke2_provider_id | default('none', true) }}"
+      - "datastore-endpoint: {{ rke2_datastore_endpoint | default('embedded etcd', true) }}"

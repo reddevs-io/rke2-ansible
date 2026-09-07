@@ -2,11 +2,16 @@
 # tasks file for rke2_install
 
 - name: Download and install RKE2 update
-  shell: |
-    curl -sfL {{ rke2_install_url }} | sudo INSTALL_RKE2_CHANNEL={{ rke2_channel }} sh -
-  environment:
-    INSTALL_RKE2_TYPE: "{{ rke2_type }}"
-    INSTALL_RKE2_VERSION: "{{ rke2_target_version if rke2_target_version else omit }}"
+  # The variables are passed inline, not through `sudo`: sudo resets the
+  # environment, which silently dropped INSTALL_RKE2_VERSION and
+  # INSTALL_RKE2_TYPE and installed the channel head instead of the pin.
+  # The play already runs with become, so sudo is not needed.
+  shell: >-
+    curl -sfL {{ rke2_install_url }} |
+    INSTALL_RKE2_CHANNEL={{ rke2_channel }}
+    INSTALL_RKE2_TYPE={{ rke2_type }}
+    {% if rke2_target_version | default('') != '' %}INSTALL_RKE2_VERSION={{ rke2_target_version }}{% endif %}
+    sh -
   register: install_result
   changed_when: "'RKE2 installed' in install_result.stdout or install_result.rc == 0"
   when: not (rke2_skip_upgrade | default(false))

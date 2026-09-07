@@ -11,6 +11,8 @@ An Ansible playbook for upgrading RKE2 Kubernetes clusters with sequential node 
 - [Configuration Variables](#configuration-variables)
 - [Upgrade Process](#upgrade-process)
 - [Adding Worker Nodes](#adding-worker-nodes)
+- [Adding Control Plane Nodes](#adding-control-plane-nodes)
+- [Removing Nodes](#removing-nodes)
 - [Troubleshooting](#troubleshooting)
 - [Files](#files)
 
@@ -444,6 +446,105 @@ All variables from the `rke2_prepare` and `rke2_install` roles also apply (see [
 
 After a successful join, move the host from `rke2_new_agents` to `rke2_agents` in your inventory so it is included in future upgrade runs.
 
+## Adding Control Plane Nodes
+
+The `add_servers_rke2.yml` playbook joins fresh hosts in the `rke2_new_servers`
+group as RKE2 **server** nodes, one at a time. Nothing in the playbook or its
+roles is specific to a cloud provider; provider details (cloud provider name,
+provider ID lookup, private interface) are inventory variables.
+
+It supports clusters that use an external SQL datastore through a local
+[kine](https://github.com/k3s-io/kine) shim (see the umoja inventory): each
+control plane runs `kine.service` on `127.0.0.1:2379` with a capped connection
+pool, and RKE2 points `datastore-endpoint` at it. Clusters on embedded etcd set
+`rke2_datastore_endpoint: ""` and drop the kine role from the play.
+
+### Prerequisites
+
+- The machine exists, is on the cluster network, and is reachable over SSH
+- If a datastore is used, it accepts connections from the new node
+- `kubectl` on the control node can reach the cluster
+- The node name (inventory hostname) is not yet a Kubernetes node
+
+### Required Variables
+
+Set them in the (gitignored) inventory group vars or pass them as extra-vars;
+`-e` overrides the inventory.
+
+| Variable | Description |
+|----------|-------------|
+| `rke2_token` | Join token from any server: `sudo cat /var/lib/rancher/rke2/server/node-token` |
+| `kine_endpoint` | SQL datastore URL, e.g. `postgresql://user:pass@host/db` (kine role only) |
+
+Optional: `rke2_version` (overrides the version detected from `rke2_servers[0]`).
+
+### Usage
+
+```bash
+# secrets in inventory group vars
+ansible-playbook -i inventory/umoja/hosts.yml add_servers_rke2.yml
+
+# pin a version explicitly
+ansible-playbook -i inventory/umoja/hosts.yml add_servers_rke2.yml -e rke2_version=v1.36.4+rke2r1
+```
+
+### Execution Flow
+
+1. **Preflight** — variables, groups, kubectl reachability, node name not already registered
+2. **Version Detection** — the new servers install the same RKE2 version as `rke2_servers[0]` unless `rke2_version` is set
+3. **Join** (per host, `serial: 1`, `any_errors_fatal`):
+   - `rke2_prepare` — apt update, dist-upgrade, conditional reboot
+   - `kine` — download the pinned kine binary, write `/etc/kine/env`, install and start `kine.service`, verify it is serving and connected to the datastore
+   - `rke2_server_join` — write `/etc/rancher/rke2/config.yaml` (server URL, token, node IP, TLS SANs, taints, datastore endpoint, optional cloud provider and provider ID, scheduler/controller-manager bind addresses) and, when `rke2_private_iface` is set, the Canal interface override
+   - `rke2_install` — install the pinned version and start `rke2-server`
+   - Wait for the node to be `Ready`, its `kube-apiserver` pod to be `Running`, `/healthz` to answer `ok` through the node's own address, and the control-plane role label to be present
+4. **Post-Join Verification** — lists the control plane nodes
+
+After a successful join, move the host from `rke2_new_servers` to `rke2_servers`.
+
+### Inventory Variables
+
+| Variable | Description |
+|----------|-------------|
+| `rke2_node_ip` | Host var: private address used for `node-ip` and `advertise-address` |
+| `rke2_server_url` | Supervisor URL, e.g. the API load balancer or VIP on port 9345 |
+| `rke2_tls_sans` | Extra SANs for the API server certificate (LB IPs, API domain) |
+| `rke2_private_iface` | Interface for the IP fallback and the Canal/flannel pin; empty to skip |
+| `rke2_datastore_endpoint` | `http://127.0.0.1:2379` for the kine shim, empty for embedded etcd |
+| `rke2_disable_components` | Packaged components to disable (e.g. `rke2-ingress-nginx` on RKE2 < 1.36) |
+| `rke2_ingress_controller` | RKE2 >= 1.36 ingress controller: `none`, `traefik` or `ingress-nginx`; empty keeps the RKE2 default |
+| `rke2_cloud_provider_name` | `external` when a cloud-controller-manager runs in the cluster; empty for none |
+| `rke2_provider_id` / `rke2_provider_id_command` | Explicit kubelet provider ID, or a command run on the node that prints it |
+| `kine_version`, `kine_max_open_connections`, `kine_max_idle_connections` | kine binary and pool settings |
+
+Example for Hetzner Cloud (from the umoja inventory):
+
+```yaml
+rke2_private_iface: enp7s0
+rke2_cloud_provider_name: external
+rke2_provider_id_command: >-
+  curl -sf http://169.254.169.254/hetzner/v1/metadata/instance-id | sed 's#^#hcloud://#'
+```
+
+## Removing Nodes
+
+The `remove_nodes_rke2.yml` playbook drains and deletes every host in
+`rke2_retiring_servers` (or `rke2_retiring_agents` with
+`-e retiring_group=rke2_retiring_agents`), one at a time:
+
+1. Refuses to leave fewer than `min_remaining_servers` (default 3) Ready control planes
+2. Cordons and drains the node
+3. Stops and disables `rke2-server`/`rke2-agent` and `kine` on the host
+4. Deletes the Node object and the `<node>.node-password.rke2` secret so the name can be reused
+5. Optionally runs `rke2-uninstall.sh` (`-e rke2_uninstall=true`)
+
+```bash
+ansible-playbook -i inventory/umoja/hosts.yml remove_nodes_rke2.yml
+```
+
+Destroy or repurpose the machine afterwards with your infrastructure tooling,
+then delete the host from the inventory.
+
 ## Troubleshooting
 
 ### Common Issues
@@ -592,19 +693,31 @@ ansible-playbook -i inventory/hosts.yml upgrade_rke2.yml -vvv
 .
 ├── README.md                         # This documentation
 ├── add_workers_rke2.yml              # Playbook to add worker nodes to an existing cluster
+├── add_servers_rke2.yml              # Playbook to add control plane nodes (kine + RKE2 server)
+├── remove_nodes_rke2.yml             # Playbook to drain and delete nodes
 ├── upgrade_rke2.yml                  # Main upgrade playbook
 ├── ansible.cfg                       # Ansible configuration
 ├── group_vars/
 │   └── rke2_cluster.yml              # Shared variables for all rke2_cluster hosts
 ├── inventory/
 │   ├── example_hosts.ini             # Example INI inventory
-│   └── example_hosts.yml             # Example YAML inventory
+│   ├── example_hosts.yml             # Example YAML inventory
+│   └── <cluster>/hosts.yml           # Real inventories (gitignored, kept local)
 └── roles/
     ├── rke2_preflight/
     │   ├── defaults/
     │   │   └── main.yml              # Default variables for preflight checks
     │   └── tasks/
     │       └── main.yml              # kubectl reachability, group, readiness, hostname checks
+    ├── kine/
+    │   ├── defaults/main.yml         # kine version, endpoint, pool settings
+    │   ├── handlers/main.yml         # restart handler
+    │   ├── tasks/main.yml            # download, env file, systemd unit, health check
+    │   └── templates/kine.service.j2
+    ├── rke2_server_join/
+    │   ├── defaults/main.yml         # server join settings
+    │   ├── tasks/main.yml            # config.yaml + Canal override
+    │   └── templates/                # config.yaml.j2, rke2-canal-config.yaml.j2
     ├── rke2_agent_join/
     │   ├── defaults/
     │   │   └── main.yml              # Default variables for agent join

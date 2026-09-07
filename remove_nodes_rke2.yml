@@ -1,0 +1,174 @@
+---
+# Remove RKE2 Nodes from an Existing Cluster
+# Drains and deletes every host in the rke2_retiring_servers (or
+# rke2_retiring_agents) inventory group, one at a time, then stops RKE2 on the
+# host. Destroy or repurpose the machine afterwards with your infrastructure tooling.
+#
+# Usage:
+#   ansible-playbook -i inventory/umoja/hosts.yml remove_nodes_rke2.yml
+#   ansible-playbook -i inventory/umoja/hosts.yml remove_nodes_rke2.yml -e retiring_group=rke2_retiring_agents
+# Optional:
+#   -e "rke2_uninstall=true"      also run rke2-uninstall.sh on the host
+#   -e "min_remaining_servers=3"  refuse to go below this many Ready control planes
+
+- name: Preflight Checks
+  hosts: localhost
+  become: false
+  gather_facts: false
+  vars:
+    retiring_group: rke2_retiring_servers
+  tasks:
+    - name: Validate the retiring group is populated
+      assert:
+        that:
+          - groups[retiring_group] is defined
+          - groups[retiring_group] | length > 0
+        fail_msg: "No hosts found in the {{ retiring_group }} inventory group."
+        quiet: true
+
+    - name: Verify kubectl can reach the cluster
+      command: kubectl get nodes -o name
+      register: preflight_nodes
+      changed_when: false
+      check_mode: false
+
+    - name: Verify every retiring host is a Kubernetes node
+      assert:
+        that:
+          - ('node/' ~ item) in preflight_nodes.stdout_lines
+        fail_msg: "{{ item }} is not a Kubernetes node name."
+        quiet: true
+      loop: "{{ groups[retiring_group] }}"
+
+
+- name: Retire RKE2 Nodes
+  hosts: "{{ retiring_group | default('rke2_retiring_servers') }}"
+  become: true
+  gather_facts: false
+  serial: 1
+  any_errors_fatal: true
+  vars:
+    rke2_type: "{{ 'server' if (retiring_group | default('rke2_retiring_servers')) == 'rke2_retiring_servers' else 'agent' }}"
+    min_remaining_servers: 3
+    rke2_uninstall: false
+    drain_timeout: 300
+    drain_grace_period: 30
+
+  tasks:
+    - name: Count Ready control plane nodes
+      shell: >-
+        kubectl get nodes -l node-role.kubernetes.io/control-plane
+        -o jsonpath='{range .items[*]}{.metadata.name}={.status.conditions[?(@.type=="Ready")].status}{"\n"}{end}'
+      delegate_to: localhost
+      become: false
+      register: cp_ready
+      changed_when: false
+      when: rke2_type == 'server'
+
+    - name: Refuse to drop below min_remaining_servers Ready control planes
+      vars:
+        ready_others: "{{ cp_ready.stdout_lines | select('search', '=True$') | reject('search', '^' ~ inventory_hostname ~ '=') | list }}"
+      assert:
+        that:
+          - ready_others | length >= (min_remaining_servers | int)
+        fail_msg: >-
+          Removing {{ inventory_hostname }} would leave {{ ready_others | length }}
+          Ready control planes ({{ ready_others }}), below min_remaining_servers={{ min_remaining_servers }}.
+        quiet: true
+      when: rke2_type == 'server'
+
+    - name: Cordon node
+      command: kubectl cordon {{ inventory_hostname }}
+      delegate_to: localhost
+      become: false
+      register: cordon_result
+      changed_when: "'cordoned' in cordon_result.stdout"
+
+    - name: Drain node
+      command: >
+        kubectl drain {{ inventory_hostname }}
+        --ignore-daemonsets --delete-emptydir-data --force
+        --timeout={{ drain_timeout }}s --grace-period={{ drain_grace_period }}
+      delegate_to: localhost
+      become: false
+      register: drain_result
+      changed_when: true
+
+    - name: Stop and disable RKE2 {{ rke2_type }} service
+      systemd:
+        name: "rke2-{{ rke2_type }}"
+        state: stopped
+        enabled: false
+      failed_when: false
+
+    - name: Stop and disable kine (if present)
+      systemd:
+        name: kine
+        state: stopped
+        enabled: false
+      failed_when: false
+      when: rke2_type == 'server'
+
+    # After a control plane is stopped, an API load balancer in front of the
+    # servers may keep routing to it until its health checks fail, so kubectl
+    # calls from here on are retried.
+    - name: Delete Kubernetes node object
+      command: kubectl delete node {{ inventory_hostname }} --ignore-not-found
+      delegate_to: localhost
+      become: false
+      register: delete_node
+      until: delete_node.rc == 0
+      retries: 12
+      delay: 5
+      changed_when: "'deleted' in delete_node.stdout"
+
+    - name: Delete the node password secret
+      command: kubectl -n kube-system delete secret {{ inventory_hostname }}.node-password.rke2 --ignore-not-found
+      delegate_to: localhost
+      become: false
+      register: delete_secret
+      until: delete_secret.rc == 0
+      retries: 12
+      delay: 5
+      changed_when: "'deleted' in delete_secret.stdout"
+
+    - name: Wait until the node is gone
+      command: kubectl get node {{ inventory_hostname }}
+      delegate_to: localhost
+      become: false
+      register: node_gone
+      until: node_gone.rc != 0
+      retries: 12
+      delay: 5
+      changed_when: false
+      failed_when: false
+
+    - name: Uninstall RKE2 (optional)
+      command: /usr/local/bin/rke2-uninstall.sh
+      when: rke2_uninstall | bool
+      failed_when: false
+
+    - name: Display removal message
+      debug:
+        msg: >-
+          {{ inventory_hostname }} removed from the cluster. Remove it from the
+          OpenTofu control_planes map (or worker list) and apply to destroy the
+          machine, then delete it from the inventory.
+
+
+- name: Post-Removal Verification
+  hosts: localhost
+  become: false
+  gather_facts: false
+  tasks:
+    - name: Show remaining nodes
+      command: kubectl get nodes -o wide
+      register: nodes_after
+      until: nodes_after.rc == 0
+      retries: 12
+      delay: 5
+      changed_when: false
+
+    - name: Display remaining nodes
+      debug:
+        var: nodes_after.stdout_lines

@@ -1,0 +1,88 @@
+---
+# tasks file for kine
+
+- name: Validate kine_endpoint is provided
+  assert:
+    that:
+      - kine_endpoint | length > 0
+      - kine_endpoint is match('^(postgres|postgresql|mysql)://')
+    fail_msg: >-
+      kine_endpoint is required (postgresql://user:password@host/db).
+      Pass it with: -e "kine_endpoint=..."
+    quiet: true
+
+- name: Check installed kine version
+  command: "{{ kine_binary }} --version"
+  register: kine_installed
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Download kine {{ kine_version }}
+  get_url:
+    url: "{{ kine_download_url }}"
+    dest: "{{ kine_binary }}"
+    mode: "0755"
+    owner: root
+    group: root
+    force: true
+  when: kine_installed.rc != 0 or kine_version not in kine_installed.stdout
+  notify: Restart kine
+
+- name: Ensure kine config directory exists
+  file:
+    path: "{{ kine_config_dir }}"
+    state: directory
+    mode: "0700"
+    owner: root
+    group: root
+
+- name: Write kine environment file
+  copy:
+    dest: "{{ kine_env_file }}"
+    content: "KINE_ENDPOINT={{ kine_endpoint }}\n"
+    mode: "0600"
+    owner: root
+    group: root
+  no_log: true
+  notify: Restart kine
+
+- name: Install kine systemd unit
+  template:
+    src: kine.service.j2
+    dest: /etc/systemd/system/kine.service
+    mode: "0644"
+  notify: Restart kine
+
+- name: Enable and start kine
+  systemd:
+    name: kine
+    enabled: true
+    state: started
+    daemon_reload: true
+
+- name: Flush handlers so kine restarts before RKE2 uses it
+  meta: flush_handlers
+
+- name: Wait for kine to listen
+  wait_for:
+    host: "{{ kine_listen_address.split(':')[0] }}"
+    port: "{{ kine_listen_address.split(':')[1] | int }}"
+    timeout: 60
+
+- name: Verify kine is serving and connected to the datastore
+  # kine speaks the etcd gRPC API only, so an HTTP probe is reset. Instead
+  # require the running process to have logged "Kine available at" (schema
+  # migration done, listener up) and to hold at least one established TCP
+  # connection, which can only be the datastore.
+  shell: |
+    set -e
+    pid=$(systemctl show kine --property=MainPID --value)
+    [ -n "$pid" ] && [ "$pid" != "0" ]
+    journalctl -u kine _PID="$pid" --no-pager | grep -q 'Kine available at'
+    ss -Htnp state established | grep -q "pid=$pid,"
+  register: kine_ready
+  until: kine_ready.rc == 0
+  retries: 12
+  delay: 5
+  changed_when: false

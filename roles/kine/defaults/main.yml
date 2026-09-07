@@ -1,0 +1,20 @@
+---
+# defaults file for kine
+# kine is an etcd API shim that stores data in a SQL database. RKE2 servers
+# point datastore-endpoint at the local listener so the connection pool to the
+# shared database is capped per node.
+
+kine_version: v0.16.3
+kine_arch: amd64
+kine_download_url: "https://github.com/k3s-io/kine/releases/download/{{ kine_version }}/kine-{{ kine_arch }}"
+kine_binary: /usr/local/bin/kine
+kine_config_dir: /etc/kine
+kine_env_file: /etc/kine/env
+
+# SQL endpoint, e.g. postgresql://user:pass@host/db (required, pass via -e)
+kine_endpoint: ""
+
+kine_listen_address: "127.0.0.1:2379"
+kine_max_open_connections: 20
+kine_max_idle_connections: 10
+kine_connection_max_lifetime: 5m

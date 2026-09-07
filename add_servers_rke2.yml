@@ -1,0 +1,225 @@
+---
+# Add RKE2 Server (control plane) Nodes to an Existing Cluster
+# Joins hosts in the rke2_new_servers inventory group as RKE2 servers, one at a
+# time. Cloud-specific settings (cloud provider name, provider ID lookup,
+# private interface) come from the inventory, not from this playbook.
+#
+# Required (inventory group vars or extra-vars; -e overrides the inventory):
+#   rke2_token      join token (any existing server: /var/lib/rancher/rke2/server/node-token)
+#   kine_endpoint   SQL datastore URL used by kine (postgresql://...)
+# Optional:
+#   rke2_version    override the version detected from the existing servers (e.g. v1.35.1+rke2r1)
+
+- name: Preflight Checks
+  hosts: localhost
+  become: false
+  gather_facts: false
+  tasks:
+    # The preflight play runs on localhost, which is not in any inventory
+    # group, so group vars are only reachable through hostvars of a cluster
+    # host. Extra-vars passed with -e take precedence because they are
+    # already defined here.
+    - name: Resolve secrets from inventory hostvars (fallback)
+      set_fact:
+        "{{ item }}": "{{ hostvars[groups['rke2_new_servers'][0]][item] }}"
+      loop:
+        - rke2_token
+        - kine_endpoint
+      when:
+        - vars[item] is not defined
+        - groups['rke2_new_servers'] | default([]) | length > 0
+        - hostvars[groups['rke2_new_servers'][0]][item] is defined
+      no_log: true
+
+    - name: Validate rke2_token is provided
+      assert:
+        that:
+          - rke2_token is defined
+          - rke2_token | length > 0
+        fail_msg: >-
+          rke2_token is required. Obtain it from any server node:
+            sudo cat /var/lib/rancher/rke2/server/node-token
+          Set it in the inventory group vars or pass: -e "rke2_token=K10...::server:..."
+        quiet: true
+
+    - name: Validate kine_endpoint is provided
+      assert:
+        that:
+          - kine_endpoint is defined
+          - kine_endpoint | length > 0
+        fail_msg: >-
+          kine_endpoint is required (the SQL datastore URL, e.g. the
+          datastore_endpoint value from the OpenTofu tfvars).
+          Set it in the inventory group vars or pass: -e "kine_endpoint=postgresql://user:pass@host/db"
+        quiet: true
+
+    - name: Validate rke2_new_servers group is populated
+      assert:
+        that:
+          - groups['rke2_new_servers'] is defined
+          - groups['rke2_new_servers'] | length > 0
+        fail_msg: "No hosts found in the rke2_new_servers inventory group."
+        quiet: true
+
+    - name: Validate rke2_servers group is populated
+      assert:
+        that:
+          - groups['rke2_servers'] is defined
+          - groups['rke2_servers'] | length > 0
+        fail_msg: "At least one existing host in rke2_servers is required for version detection."
+        quiet: true
+
+    - name: Verify kubectl can reach the cluster
+      command: kubectl get nodes -o name
+      register: preflight_nodes
+      changed_when: false
+      check_mode: false
+
+    - name: Refuse to join a host whose node name already exists in the cluster
+      assert:
+        that:
+          - ('node/' ~ item) not in preflight_nodes.stdout_lines
+        fail_msg: >-
+          {{ item }} is already a Kubernetes node. Delete the node and its
+          kube-system secret {{ item }}.node-password.rke2 first, or remove the
+          host from rke2_new_servers.
+        quiet: true
+      loop: "{{ groups['rke2_new_servers'] }}"
+
+
+- name: Detect RKE2 Version from Existing Servers
+  hosts: "{{ groups['rke2_servers'][0] }}"
+  become: true
+  gather_facts: false
+  any_errors_fatal: true
+  tasks:
+    - name: Detect installed RKE2 version
+      shell: /usr/local/bin/rke2 --version 2>/dev/null | head -1 | awk '{print $3}'
+      register: rke2_installed_version_raw
+      changed_when: false
+      failed_when: false
+
+    - name: Set detected version fact
+      set_fact:
+        rke2_detected_version: "{{ rke2_version | default('') if (rke2_version | default('')) != '' else rke2_installed_version_raw.stdout }}"
+
+    - name: Fail if version detection failed
+      fail:
+        msg: "Could not detect the RKE2 version on {{ inventory_hostname }}."
+      when: rke2_detected_version == ""
+
+    - name: Display target version
+      debug:
+        msg: "New servers will install RKE2 {{ rke2_detected_version }}"
+
+    - name: Propagate target version to new server hosts
+      add_host:
+        name: "{{ item }}"
+        groups: rke2_new_servers
+        rke2_target_version: "{{ rke2_detected_version }}"
+      loop: "{{ groups['rke2_new_servers'] }}"
+
+
+- name: Join RKE2 Server Nodes
+  hosts: rke2_new_servers
+  become: true
+  serial: 1
+  any_errors_fatal: true
+  vars:
+    rke2_type: server
+    rke2_skip_upgrade: false
+    health_check_retries: 40
+    health_check_interval: 15
+
+  tasks:
+    - name: Prepare system
+      include_role:
+        name: rke2_prepare
+
+    - name: Install and start kine datastore shim
+      include_role:
+        name: kine
+
+    - name: Write RKE2 server configuration
+      include_role:
+        name: rke2_server_join
+
+    - name: Install RKE2 server
+      include_role:
+        name: rke2_install
+
+    - name: Ensure rke2-server service is enabled at boot
+      systemd:
+        name: rke2-server
+        enabled: true
+
+    - name: Wait for node to be Ready
+      shell: >
+        kubectl get nodes {{ inventory_hostname }} -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}'
+      delegate_to: localhost
+      become: false
+      register: node_ready
+      until: node_ready.stdout == "True"
+      retries: "{{ health_check_retries }}"
+      delay: "{{ health_check_interval }}"
+      changed_when: false
+
+    - name: Wait for the node's kube-apiserver pod to be Running
+      shell: >
+        kubectl -n kube-system get pod kube-apiserver-{{ inventory_hostname }}
+        -o jsonpath='{.status.phase}'
+      delegate_to: localhost
+      become: false
+      register: apiserver_phase
+      until: apiserver_phase.stdout == "Running"
+      retries: "{{ health_check_retries }}"
+      delay: "{{ health_check_interval }}"
+      changed_when: false
+
+    - name: Verify the API server answers on the node's public address
+      # RKE2 disables anonymous auth, so an unauthenticated /healthz is a 401.
+      # Use the operator's kubeconfig credentials against this node directly;
+      # the node's public IP is not in the serving certificate, hence
+      # --insecure-skip-tls-verify (the client certificate still authenticates).
+      command: >
+        kubectl --server=https://{{ ansible_host }}:6443 --insecure-skip-tls-verify
+        get --raw /healthz
+      delegate_to: localhost
+      become: false
+      register: apiserver_healthz
+      until: apiserver_healthz.rc == 0 and apiserver_healthz.stdout == "ok"
+      retries: 10
+      delay: 6
+      changed_when: false
+
+    - name: Verify the node has the control-plane role
+      shell: >
+        kubectl get node {{ inventory_hostname }}
+        -o jsonpath='{.metadata.labels.node-role\.kubernetes\.io/control-plane}'
+      delegate_to: localhost
+      become: false
+      register: cp_label
+      changed_when: false
+      failed_when: cp_label.stdout != "true"
+
+    - name: Display join success message
+      debug:
+        msg: >-
+          Server node {{ inventory_hostname }} joined the cluster
+          (RKE2 {{ rke2_target_version }}).
+          Move this host from rke2_new_servers to rke2_servers in the inventory.
+
+
+- name: Post-Join Verification
+  hosts: localhost
+  become: false
+  gather_facts: false
+  tasks:
+    - name: Show control plane nodes
+      command: kubectl get nodes -l node-role.kubernetes.io/control-plane -o wide
+      register: cp_nodes
+      changed_when: false
+
+    - name: Display control plane nodes
+      debug:
+        var: cp_nodes.stdout_lines

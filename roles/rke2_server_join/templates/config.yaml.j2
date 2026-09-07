@@ -1,0 +1,57 @@
+# {{ ansible_managed }}
+server: "{{ rke2_server_url }}"
+token: "{{ rke2_token }}"
+node-name: {{ inventory_hostname }}
+node-ip: {{ rke2_node_ip }}
+advertise-address: {{ rke2_node_ip }}
+{% if rke2_tls_sans | length > 0 %}
+tls-san:
+{% for san in rke2_tls_sans %}
+  - {{ san }}
+{% endfor %}
+{% endif %}
+{% if rke2_disable_components | length > 0 %}
+disable:
+{% for c in rke2_disable_components %}
+  - {{ c }}
+{% endfor %}
+{% endif %}
+{% if rke2_node_taints | length > 0 %}
+node-taint:
+{% for t in rke2_node_taints %}
+  - "{{ t }}"
+{% endfor %}
+{% endif %}
+{% if rke2_ingress_controller | length > 0 %}
+ingress-controller: {{ rke2_ingress_controller }}
+{% endif %}
+write-kubeconfig-mode: "{{ rke2_write_kubeconfig_mode }}"
+{% if rke2_datastore_endpoint | length > 0 %}
+datastore-endpoint: {{ rke2_datastore_endpoint }}
+{% endif %}
+{% if rke2_cloud_provider_name | length > 0 %}
+cloud-provider-name: {{ rke2_cloud_provider_name }}
+{% endif %}
+kubelet-arg:
+{% if rke2_cloud_provider_name == "external" %}
+  - "cloud-provider=external"
+{% endif %}
+{% if rke2_provider_id | length > 0 %}
+  - "provider-id={{ rke2_provider_id }}"
+{% endif %}
+  - "node-ip={{ rke2_node_ip }}"
+{% for a in rke2_extra_kubelet_args %}
+  - "{{ a }}"
+{% endfor %}
+{% if rke2_kube_scheduler_args | length > 0 %}
+kube-scheduler-arg:
+{% for a in rke2_kube_scheduler_args %}
+  - "{{ a }}"
+{% endfor %}
+{% endif %}
+{% if rke2_kube_controller_manager_args | length > 0 %}
+kube-controller-manager-arg:
+{% for a in rke2_kube_controller_manager_args %}
+  - "{{ a }}"
+{% endfor %}
+{% endif %}
