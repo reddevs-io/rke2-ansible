@@ -1,0 +1,28 @@
+/* Memory Bank / Journal shard fragments
+   Shard fragments are HTML with no <head>: just a leading
+   <link rel="stylesheet" href="journal.css"> followed by a series of
+   <article class="entry" data-target="..." data-kind="..."> blocks. */
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0c0e15;--surface:#141826;--surface-2:#1b2030;
+  --border:#283049;--border-soft:#20273c;
+  --text:#e7edf5;--text-dim:#96a0b6;--text-mute:#667089;
+  --blue:#5b9df5;--green:#3ddc91;--amber:#f2ad42;--red:#f26a5c;--violet:#a08cf7;--cyan:#48c9d6;
+  --accent:var(--green);--accent-soft:rgba(61,220,145,.14);
+  --sans:ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,sans-serif;
+  --mono:ui-monospace,'SF Mono','JetBrains Mono',Menlo,Consolas,monospace;
+}
+body{font-family:var(--sans);background:var(--bg);color:var(--text);line-height:1.6;
+  max-width:880px;margin:0 auto;padding:3rem 2rem 4rem;-webkit-font-smoothing:antialiased}
+
+.entry{position:relative;margin-bottom:1.1rem;background:var(--surface);
+  border:1px solid var(--border-soft);border-radius:10px;padding:1rem 1.15rem}
+.entry::before{content:'';position:absolute;left:.5rem;top:1.35rem;width:7px;height:7px;
+  border-radius:50%;background:var(--violet)}
+.entry time{font-family:var(--mono);font-size:.72rem;color:var(--text-mute);display:block;
+  margin-bottom:.4rem;padding-left:1.1rem}
+.entry h3{font-size:.98rem;margin-bottom:.7rem;font-weight:650;text-wrap:balance}
+.entry .rationale,.entry .details{font-size:.87rem;color:var(--text-dim);margin-bottom:.5rem}
+.entry .rationale strong,.entry .details strong{color:var(--text-dim);font-family:var(--mono);
+  font-size:.64rem;text-transform:uppercase;letter-spacing:.08em;display:block;margin-bottom:.25rem}
+.entry p{font-size:.9rem}

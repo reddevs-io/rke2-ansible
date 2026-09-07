@@ -1,0 +1,113 @@
+/* Memory Bank / shared canonical-template stylesheet
+   Common to activeContext.html, decisionLog.html, productContext.html,
+   progress.html, systemPatterns.html. Each of those files links this
+   sheet and keeps only its own --accent/--accent-soft override inline.
+   journal.css (shard fragments) is separate and does not use this file. */
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0c0e15;--surface:#141826;--surface-2:#1b2030;
+  --border:#283049;--border-soft:#20273c;
+  --text:#e7edf5;--text-dim:#96a0b6;--text-mute:#667089;
+  --blue:#5b9df5;--green:#3ddc91;--amber:#f2ad42;--red:#f26a5c;--violet:#a08cf7;--cyan:#48c9d6;
+  --sans:ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,sans-serif;
+  --mono:ui-monospace,'SF Mono','JetBrains Mono',Menlo,Consolas,monospace;
+}
+body{font-family:var(--sans);background:var(--bg);color:var(--text);line-height:1.6;
+  max-width:880px;margin:0 auto;padding:3rem 2rem 4rem;-webkit-font-smoothing:antialiased}
+.page-head{border-bottom:1px solid var(--border);padding-bottom:1.4rem;margin-bottom:1.5rem}
+.eyebrow{font-family:var(--mono);font-size:.72rem;font-weight:600;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--accent);margin-bottom:.5rem}
+h1{font-size:1.7rem;font-weight:720;letter-spacing:-.02em;line-height:1.15;text-wrap:balance}
+.meta{color:var(--text-mute);font-size:.8rem;margin-top:.5rem}
+h2{font-size:.74rem;font-weight:650;text-transform:uppercase;letter-spacing:.12em;color:var(--text-dim);
+  margin:2.1rem 0 .8rem;display:flex;align-items:center;gap:.5rem}
+h2::before{content:'';width:6px;height:6px;border-radius:2px;background:var(--accent)}
+
+/* progress.html: stats bar + task/milestone tables */
+.stats-bar{display:flex;gap:.9rem;margin:1.6rem 0}
+.stat{flex:1;position:relative;overflow:hidden;background:var(--surface);
+  border:1px solid var(--border-soft);border-radius:11px;padding:1.2rem 1rem;text-align:center}
+.stat::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
+.stat.done::before{background:var(--green)}
+.stat.active::before{background:var(--amber)}
+.stat.next::before{background:var(--blue)}
+.count{display:block;font-size:2.3rem;font-weight:730;letter-spacing:-.02em;line-height:1;font-variant-numeric:tabular-nums}
+.stat.done .count{color:var(--green)}
+.stat.active .count{color:var(--amber)}
+.stat.next .count{color:var(--blue)}
+.label{display:block;font-family:var(--mono);font-size:.66rem;color:var(--text-dim);
+  text-transform:uppercase;letter-spacing:.08em;margin-top:.45rem}
+.task-table,.milestone-table{width:100%;border-collapse:separate;border-spacing:0;margin-top:.5rem;
+  border:1px solid var(--border-soft);border-radius:10px;overflow:hidden}
+.task-table th,.milestone-table th{text-align:left;padding:.6rem .8rem;background:var(--surface-2);font-family:var(--mono);
+  font-size:.66rem;text-transform:uppercase;letter-spacing:.08em;color:var(--text-dim);font-weight:600}
+.task-table td,.milestone-table td{padding:.65rem .8rem;border-top:1px solid var(--border-soft);font-size:.89rem}
+.task-table td:last-child,.milestone-table td:last-child{font-family:var(--mono);font-size:.78rem;color:var(--text-mute);white-space:nowrap}
+.task-table td.cell-milestone{font-family:var(--mono);font-size:.78rem;color:var(--text-mute);white-space:nowrap}
+.task-table tbody tr:hover td,.milestone-table tbody tr:hover td{background:var(--surface)}
+.badge{display:inline-flex;align-items:center;gap:.4rem;padding:.22rem .6rem;border-radius:6px;
+  font-family:var(--mono);font-size:.68rem;font-weight:650}
+.badge::before{content:'';width:6px;height:6px;border-radius:50%;background:currentColor}
+.badge.done{background:rgba(61,220,145,.14);color:var(--green)}
+.badge.active{background:rgba(242,173,66,.14);color:var(--amber)}
+.badge.next{background:rgba(91,157,245,.14);color:var(--blue)}
+
+/* activeContext.html: focus/changes/issues panels */
+.panel{background:var(--surface);border:1px solid var(--border-soft);border-radius:10px;
+  padding:1.1rem 1.25rem;margin-bottom:.9rem}
+.panel h3{font-family:var(--mono);font-size:.72rem;text-transform:uppercase;letter-spacing:.1em;
+  margin-bottom:.75rem;display:flex;align-items:center;gap:.5rem;font-weight:600}
+.panel h3::before{content:'';width:7px;height:7px;border-radius:50%}
+.panel.focus h3{color:var(--blue)}    .panel.focus h3::before{background:var(--blue)}
+.panel.changes h3{color:var(--green)} .panel.changes h3::before{background:var(--green)}
+.panel.issues h3{color:var(--red)}    .panel.issues h3::before{background:var(--red)}
+.panel ul{list-style:none;display:flex;flex-direction:column;gap:.35rem}
+.panel li{padding:.45rem .7rem;font-size:.9rem;background:var(--bg);
+  border:1px solid var(--border-soft);border-radius:6px}
+.panel li:empty::after{content:'—';color:var(--text-mute)}
+
+/* decisionLog.html: timeline */
+.timeline{position:relative;padding-left:1.5rem;margin-top:1.4rem}
+.timeline::before{content:'';position:absolute;left:4px;top:.5rem;bottom:.5rem;width:1px;background:var(--border)}
+.decision-entry{position:relative;margin-bottom:1.1rem;background:var(--surface);
+  border:1px solid var(--border-soft);border-radius:10px;padding:1rem 1.15rem}
+.decision-entry::before{content:'';position:absolute;left:-1.5rem;top:1.3rem;width:9px;height:9px;
+  border-radius:50%;background:var(--accent);border:2px solid var(--bg)}
+.decision-entry time{font-family:var(--mono);font-size:.72rem;color:var(--text-mute);display:block;margin-bottom:.4rem}
+.decision-entry h3{font-size:.98rem;margin-bottom:.7rem;font-weight:650;text-wrap:balance}
+.decision-entry .rationale,.decision-entry .details{font-size:.87rem;color:var(--text-dim);margin-bottom:.5rem}
+.decision-entry strong{color:var(--text-dim);font-family:var(--mono);font-size:.64rem;text-transform:uppercase;
+  letter-spacing:.08em;display:block;margin-bottom:.25rem}
+
+/* systemPatterns.html: pattern cards */
+.pattern-card{background:var(--surface);border:1px solid var(--border-soft);border-radius:9px;
+  padding:.95rem 1.1rem;margin-bottom:.6rem}
+.category-badge{display:inline-block;font-family:var(--mono);font-size:.64rem;font-weight:700;
+  padding:.2rem .5rem;border-radius:5px;text-transform:uppercase;letter-spacing:.06em;margin-bottom:.5rem}
+.pattern-card.coding .category-badge{background:rgba(91,157,245,.15);color:var(--blue)}
+.pattern-card.arch .category-badge{background:rgba(160,140,247,.15);color:var(--violet)}
+.pattern-card.testing .category-badge{background:rgba(61,220,145,.15);color:var(--green)}
+.pattern-card p{font-size:.9rem}
+.pattern-card pre{font-family:var(--mono);background:var(--bg);border:1px solid var(--border-soft);
+  border-radius:6px;padding:.7rem;margin-top:.55rem;font-size:.8rem;overflow-x:auto}
+
+/* productContext.html: goal list, feature pills, architecture cards */
+ul{list-style:none;display:flex;flex-direction:column;gap:.45rem}
+ul li{padding:.6rem .85rem;font-size:.92rem;background:var(--surface);
+  border:1px solid var(--border-soft);border-radius:7px}
+ul li:empty::after{content:'Not captured yet';color:var(--text-mute);font-style:italic}
+.pill-list{display:flex;flex-wrap:wrap;gap:.5rem}
+.pill{font-family:var(--mono);font-size:.82rem;background:var(--surface-2);
+  border:1px solid var(--border);border-radius:7px;padding:.35rem .8rem}
+.arch-card{background:var(--surface);border:1px solid var(--border-soft);border-radius:8px;
+  padding:.85rem 1rem;margin-bottom:.5rem;font-size:.9rem}
+
+/* shared activity log, appended to every canonical file */
+.log-section-header{margin-top:2.8rem;padding-bottom:.5rem;border-bottom:1px solid var(--border);
+  color:var(--text-dim);font-family:var(--mono);font-size:.68rem;text-transform:uppercase;
+  letter-spacing:.12em;font-weight:600}
+.log-entry{margin-top:.7rem;padding:.75rem .95rem;background:var(--surface);
+  border:1px solid var(--border-soft);border-radius:8px}
+.log-entry time{font-family:var(--mono);font-size:.72rem;color:var(--text-mute);display:block;margin-bottom:.3rem}
+.log-entry time::before{content:'▸ ';color:var(--accent)}
+.log-entry p{font-size:.9rem}
