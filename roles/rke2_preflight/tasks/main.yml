@@ -18,10 +18,15 @@
       - groups.rke2_servers | default([]) | length > 0
     fail_msg: "Inventory must define at least one host in the rke2_servers group"
 
+# A comma in a kubectl label selector is AND, not OR. RKE2 1.36 dropped the
+# deprecated node-role.kubernetes.io/master label, so requiring both matched
+# zero nodes and failed preflight on a healthy control plane. Every RKE2
+# version this playbook supports sets control-plane, which is what the other
+# playbooks (add_servers_rke2.yml, remove_nodes_rke2.yml) already select on.
 - name: Verify at least one server node is Ready
   shell: >-
     kubectl get nodes
-    -l node-role.kubernetes.io/control-plane,node-role.kubernetes.io/master
+    -l node-role.kubernetes.io/control-plane
     -o jsonpath='{.items[*].status.conditions[?(@.type=="Ready")].status}'
   register: preflight_server_ready
   changed_when: false

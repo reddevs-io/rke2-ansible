@@ -7,7 +7,9 @@
   become: false
   register: cordon_result
   changed_when: "'cordoned' in cordon_result.stdout"
-  when: not (rke2_skip_upgrade | default(false))
+  when:
+    - drain_enabled | bool
+    - not (rke2_skip_upgrade | default(false))
 
 - name: Drain node
   command: >
@@ -23,12 +25,23 @@
     'evicting' in (drain_result.stdout | default(''))
     or 'deleted' in (drain_result.stdout | default(''))
   ignore_errors: true
-  when: not (rke2_skip_upgrade | default(false))
+  when:
+    - drain_enabled | bool
+    - not (rke2_skip_upgrade | default(false))
 
 - name: Check drain result
   fail:
     msg: "Failed to drain node {{ inventory_hostname }}: {{ drain_result.stderr }}"
   when:
+    - drain_enabled | bool
     - not (rke2_skip_upgrade | default(false))
     - drain_result.rc != 0
     - "'cannot delete DaemonSet-managed Pods' not in drain_result.stderr"
+
+- name: Report in-place upgrade (drain disabled)
+  debug:
+    msg: >-
+      drain_enabled is false: {{ inventory_hostname }} was not cordoned or
+      drained. Its pods will be restarted in place when rke2-{{ rke2_type }}
+      restarts.
+  when: not (drain_enabled | bool)

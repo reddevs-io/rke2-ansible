@@ -1,6 +1,14 @@
 ---
 # defaults file for rke2_node_drain
 
+# When false, the node is neither cordoned nor drained and the RKE2 upgrade is
+# applied in place: pods stay bound to the node and restart there once the
+# service comes back. Use this on clusters that cannot absorb a whole node's
+# workload -- when evicted pods cannot be scheduled elsewhere they stay Pending,
+# which holds their PodDisruptionBudgets at zero allowed disruptions and
+# deadlocks the drain until the node is uncordoned again.
+drain_enabled: true
+
 # Drain timeout in seconds
 drain_timeout: 300
 

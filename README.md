@@ -7,6 +7,7 @@ An Ansible playbook for upgrading RKE2 Kubernetes clusters with sequential node 
 - [Prerequisites](#prerequisites)
 - [Inventory Structure](#inventory-structure)
 - [Architecture](#architecture)
+  - [In-Place Upgrades](#in-place-upgrades-clusters-without-spare-capacity)
 - [Usage](#usage)
 - [Configuration Variables](#configuration-variables)
 - [Upgrade Process](#upgrade-process)
@@ -132,12 +133,54 @@ By default the playbook refuses to downgrade RKE2. If the installed version is n
 -e "allow_downgrade=true"
 ```
 
+### In-Place Upgrades (Clusters Without Spare Capacity)
+
+The default flow drains each node before upgrading it. That requires the rest of
+the cluster to have enough free capacity to host the drained node's workload. On
+a small cluster it often does not, and the failure is not graceful:
+
+1. Evicted pods have nowhere to schedule and stay `Pending`.
+2. `Pending` pods are unavailable, so their PodDisruptionBudgets report
+   `ALLOWED DISRUPTIONS: 0`.
+3. Remaining evictions on that node are refused, `kubectl drain` times out after
+   `drain_timeout`, and the playbook aborts leaving the node **cordoned and
+   half-drained**.
+
+The node cannot finish draining until its evicted pods are `Ready`, and they
+cannot become `Ready` until the node is uncordoned — a deadlock needing manual
+recovery.
+
+Check for this before upgrading. Draining any one node is only safe if its
+non-DaemonSet requests fit in the free space on the others:
+
+```bash
+kubectl describe nodes | grep -A5 "Allocated resources"
+```
+
+When they do not fit, set `drain_enabled=false` to upgrade in place:
+
+```bash
+ansible-playbook -i inventory/hosts.yml upgrade_rke2.yml \
+  -e "rke2_version=v1.31.4+rke2r1" \
+  -e "drain_enabled=false"
+```
+
+The node is then neither cordoned nor drained. Its pods are never evicted: they
+stay bound to the node and restart there when `rke2-agent`/`rke2-server`
+restarts, so no PodDisruptionBudget is consulted and nothing goes `Pending`. The
+trade-off is that every pod on the node is briefly down together rather than
+being moved off ahead of time — on a capacity-constrained cluster that is
+usually the smaller disruption, and it is the only option when a PDB is
+structurally undrainable (for example a CloudNativePG `*-primary` PDB, which
+pins `minAvailable: 1` on a single primary pod and so always reports zero
+allowed disruptions).
+
 ### Execution Flow
 
 1. **Preflight** (control node, once) — kubectl reachability, non-empty `rke2_servers` group, at least one server `Ready`, and inventory hostname matches a Kubernetes node name
 2. **Version Check** — determine installed and target versions; set `skip_upgrade`; enforce downgrade guard
-3. **System Preparation** (skipped if version matches, unless `prepare_always_runs: true`) — apt update, dist-upgrade, reboot only when `/var/run/reboot-required` exists
-4. **Node Drain** (skipped if version matches) — cordon and drain from localhost
+3. **Node Drain** (skipped if version matches, or if `drain_enabled: false`) — cordon and drain from localhost
+4. **System Preparation** (skipped if version matches, unless `prepare_always_runs: true`) — apt update, dist-upgrade, reboot only when `/var/run/reboot-required` exists
 5. **RKE2 Installation** (skipped if version matches) — download and install new version
 6. **Node Restore** (skipped if version matches) — wait for `Ready`, wait for pods `Running`/`Succeeded`, uncordon; on failure the node stays cordoned and the rescue block prints remediation guidance
 7. **Post-Upgrade Verification** (control node, once) — all nodes `Ready` and all `kubeletVersion` values match the target version prefix
@@ -235,6 +278,7 @@ Shared variables for all hosts in the `rke2_cluster` group live in [`group_vars/
 | `drain_ignore_daemonsets` | `true` | Whether to ignore daemonsets during drain |
 | `drain_force` | `true` | Whether to force drain |
 | `drain_delete_emptydir_data` | `true` | Whether to delete pods using an emptyDir volume during drain |
+| `drain_enabled` | `true` | When `false`, the node is neither cordoned nor drained and RKE2 is upgraded in place. See [In-Place Upgrades](#in-place-upgrades-clusters-without-spare-capacity) |
 
 ### Install Role (`rke2_install`)
 
@@ -313,14 +357,14 @@ For each server node:
    - Compare versions and set `skip_upgrade` fact
    - Refuse downgrade unless `allow_downgrade: true`
 
-2. **System Preparation** (skipped if version matches, unless `prepare_always_runs: true`)
+2. **Cordon/Drain** (skipped if version matches, or if `drain_enabled: false`)
+   - Cordon the node (mark as unschedulable) - runs from localhost
+   - Drain the node (evict pods) - runs from localhost
+
+3. **System Preparation** (skipped if version matches, unless `prepare_always_runs: true`)
    - Update apt cache (respects `apt_cache_valid_time`)
    - Perform dist-upgrade
    - Reboot only when `/var/run/reboot-required` exists, then wait for connection
-
-3. **Cordon/Drain** (skipped if version matches)
-   - Cordon the node (mark as unschedulable) - runs from localhost
-   - Drain the node (evict pods) - runs from localhost
 
 4. **RKE2 Installation** (skipped if version matches)
    - Download RKE2 install script
