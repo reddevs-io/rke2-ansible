@@ -1,0 +1,6 @@
+<link href="journal.css" rel="stylesheet">
+<article class="entry" data-entry-id="283be867-61ca-4de0-8ee3-e3cc302dcc26" data-kind="issue" data-schema-version="2" data-session-id="f1a81eed-d579-498a-b8ee-36704580c6a0" data-target="activeContext">
+  <time datetime="2026-09-08T22:28:06.980204Z">2026-09-08T22:28:06.980204Z</time>
+  <h3>MariaDBMultipleWritable root cause: pod restarts reset read_only and the operator does not re-apply it</h3>
+  <div class="details"><strong>Details</strong>mariadb-khama replicas carry no read_only setting in spec.myCnf, so a pod restart brings them up at the MariaDB default read_only=0. mariadb-operator 26.3.0 sets read_only=1 on replicas only when it (re)configures replication or performs a switchover; on a plain pod restart its ReplicationConfigured condition is already True, so it re-establishes CHANGE MASTER/START SLAVE but never re-applies read_only=1. Prometheus history confirms the mechanism: khama-1 flipped 1-&gt;0 at 2026-09-08T17:08Z and khama-2 at 17:23Z, matching the umoja in-place node reboots (fatimah rke2-agent restart 17:06:37Z, zenobia ~17:14Z). The same pattern existed before 2026-09-06 06:08Z, when a switchover to khama-0 restored read_only=1 on both replicas. Any pod restart will reproduce this.</div>
+</article>

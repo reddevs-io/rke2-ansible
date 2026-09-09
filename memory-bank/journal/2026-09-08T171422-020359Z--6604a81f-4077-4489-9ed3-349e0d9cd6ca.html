@@ -1,0 +1,6 @@
+<link href="journal.css" rel="stylesheet">
+<article class="entry" data-class="arch" data-entry-id="6604a81f-4077-4489-9ed3-349e0d9cd6ca" data-kind="pattern" data-schema-version="2" data-session-id="f1a81eed-d579-498a-b8ee-36704580c6a0" data-target="systemPatterns">
+  <time datetime="2026-09-08T17:14:22.020359Z">2026-09-08T17:14:22.020359Z</time>
+  <h3>Verify drain capacity before a rolling upgrade</h3>
+  <div class="details"><strong>Details</strong>A drain-based rolling upgrade needs the remaining nodes to absorb the drained node's non-DaemonSet requests. umoja carried 37.2Gi of memory requests against 45.75Gi allocatable over 3 workers, a 5.38Gi shortfall whichever node is drained, and its control planes are tainted CriticalAddonsOnly so nothing spills there. Check with: kubectl describe nodes | grep -A5 'Allocated resources'. If it does not fit, use drain_enabled=false.</div>
+</article>

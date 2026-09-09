@@ -25,16 +25,16 @@
       include_role:
         name: rke2_version_check
 
+    - name: Drain node
+      include_role:
+        name: rke2_node_drain
+
     - name: Prepare system
       include_role:
         name: rke2_prepare
       when: >-
         (not (rke2_skip_upgrade | default(false)))
         or (prepare_always_runs | bool)
-
-    - name: Drain node
-      include_role:
-        name: rke2_node_drain
 
     - name: Install RKE2
       include_role:
@@ -57,16 +57,16 @@
       include_role:
         name: rke2_version_check
 
+    - name: Drain node
+      include_role:
+        name: rke2_node_drain
+
     - name: Prepare system
       include_role:
         name: rke2_prepare
       when: >-
         (not (rke2_skip_upgrade | default(false)))
         or (prepare_always_runs | bool)
-
-    - name: Drain node
-      include_role:
-        name: rke2_node_drain
 
     - name: Install RKE2
       include_role:
@@ -115,18 +115,46 @@
       debug:
         var: node_versions_raw.stdout_lines
 
+    - name: Determine the target kubelet version
+      # Compare on the prefix before any '+': kubeletVersion may or may not
+      # carry the RKE2 build suffix depending on the release (RKE2 1.36 reports
+      # v1.36.4+rke2r1, older releases reported a bare v1.28.4).
+      # Read the fact from any host that ran rke2_version_check rather than
+      # assuming rke2_servers[0] did: under --limit that host may not have run,
+      # leaving the fact undefined and defaulting the target to an empty string.
+      set_fact:
+        target_kubelet_version: >-
+          {{ ((groups.rke2_servers | default([])) + (groups.rke2_agents | default([])))
+             | map('extract', hostvars, 'rke2_target_version')
+             | select('defined') | reject('equalto', '') | list
+             | first | default('') }}
+
+    - name: Fail if the target version could not be determined
+      # Without this guard an empty target makes the assertion below pass
+      # vacuously, reporting a successful upgrade having verified nothing.
+      fail:
+        msg: >-
+          Could not determine the target RKE2 version: no host recorded
+          rke2_target_version. Refusing to report success without verifying it.
+      when: (target_kubelet_version | trim | split('+') | first) == ''
+
     - name: Verify all nodes report the target version
-      # kubeletVersion reports the Kubernetes version (e.g. v1.28.4) without the
-      # RKE2 build suffix (+rke2r1), so compare on the prefix before any '+'.
+      # Every line must match. A substring search over the whole output only
+      # proves that *some* node reached the target, not all of them.
       assert:
         that:
-          - node_versions_raw.stdout is search(target_kubelet_version)
+          - nodes_off_target | length == 0
         fail_msg: >-
-          Not all nodes report the target kubelet version {{ target_kubelet_version }}.
-          Node versions:
-          {{ node_versions_raw.stdout_lines }}
+          These nodes do not report the target kubelet version
+          {{ target_kubelet_version | trim | split('+') | first }}: {{ nodes_off_target }}
+        success_msg: >-
+          All {{ node_versions_raw.stdout_lines | length }} nodes report kubelet
+          version {{ target_kubelet_version | trim | split('+') | first }}
       vars:
-        target_kubelet_version: "{{ (hostvars[groups.rke2_servers[0]].rke2_target_version | default('')).split('+')[0] }}"
+        nodes_off_target: >-
+          {{ node_versions_raw.stdout_lines
+             | reject('search', '=' ~ (target_kubelet_version | trim | split('+') | first | regex_escape) ~ '(\+|$)')
+             | list }}
 
     - name: Display upgrade complete message
       debug:

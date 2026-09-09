@@ -1,0 +1,6 @@
+<link href="journal.css" rel="stylesheet">
+<article class="entry" data-entry-id="48361762-c4dc-4960-b42c-bed2579b7351" data-kind="change" data-schema-version="2" data-session-id="f1a81eed-d579-498a-b8ee-36704580c6a0" data-target="activeContext">
+  <time datetime="2026-09-08T17:14:22.005314Z">2026-09-08T17:14:22.005314Z</time>
+  <h3>Post-upgrade version assertion no longer passes vacuously</h3>
+  <div class="details"><strong>Details</strong>upgrade_rke2.yml asserted `node_versions_raw.stdout is search(target_kubelet_version)`: a substring match over every node's output at once, so it passed when only one node had reached the target. The target also came from hostvars[groups.rke2_servers[0]].rke2_target_version, undefined under --limit, defaulting to '' and making search('') always true. It now derives the target from any host that ran version_check, fails when it cannot be determined, and requires every line to match. Also corrected a wrong comment: kubeletVersion DOES carry the +rke2r1 suffix on RKE2 1.36, so the match accepts both bare and suffixed forms.</div>
+</article>
