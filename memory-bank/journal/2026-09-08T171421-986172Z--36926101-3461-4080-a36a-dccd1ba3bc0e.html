@@ -1,0 +1,7 @@
+<link href="journal.css" rel="stylesheet">
+<article class="entry" data-entry-id="36926101-3461-4080-a36a-dccd1ba3bc0e" data-kind="decision" data-schema-version="2" data-session-id="f1a81eed-d579-498a-b8ee-36704580c6a0" data-target="decisionLog">
+  <time datetime="2026-09-08T17:14:21.986172Z">2026-09-08T17:14:21.986172Z</time>
+  <h3>rke2_node_drain now runs before rke2_prepare</h3>
+  <div class="rationale"><strong>Rationale</strong>rke2_prepare reboots the node. Rebooting before draining hard-kills every pod on a node that is still carrying its full workload, and the drain then has to move those same pods anyway, doubling the disruption.</div>
+  <div class="details"><strong>Details</strong>Reordered in both the server and agent plays of upgrade_rke2.yml. Observed on umoja zewditu, whose ~48 pods were killed by the reboot before the drain even started.</div>
+</article>

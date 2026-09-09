@@ -1,0 +1,6 @@
+<link href="journal.css" rel="stylesheet">
+<article class="entry" data-class="arch" data-entry-id="e89170a4-67c9-4b7c-90fe-b5719f7a5290" data-kind="pattern" data-schema-version="2" data-session-id="f1a81eed-d579-498a-b8ee-36704580c6a0" data-target="systemPatterns">
+  <time datetime="2026-09-08T17:14:22.037003Z">2026-09-08T17:14:22.037003Z</time>
+  <h3>CloudNativePG primary PDB is structurally undrainable</h3>
+  <div class="details"><strong>Details</strong>A cnpg &lt;cluster&gt;-primary PDB pins minAvailable:1 against a selector matching only the single primary pod, so disruptionsAllowed is permanently 0 and kubectl drain of its node can never succeed. Move the primary first by patching .status.targetPrimary (what kubectl cnpg promote does under the hood; the plugin is not installed locally), or upgrade in place. Done for umoja: switched pg-taytu-1 to pg-taytu-4 before zenobia, so the reboot took down only a replica and no failover occurred.</div>
+</article>

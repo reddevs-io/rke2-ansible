@@ -1,0 +1,6 @@
+<link href="journal.css" rel="stylesheet">
+<article class="entry" data-entry-id="c9f402fd-f7c9-4541-afaf-77aefd17b378" data-kind="change" data-schema-version="2" data-session-id="f1a81eed-d579-498a-b8ee-36704580c6a0" data-target="activeContext">
+  <time datetime="2026-09-08T17:14:21.950958Z">2026-09-08T17:14:21.950958Z</time>
+  <h3>Fixed rke2_preflight control-plane label selector</h3>
+  <div class="details"><strong>Details</strong>roles/rke2_preflight/tasks/main.yml selected -l node-role.kubernetes.io/control-plane,node-role.kubernetes.io/master. A comma in a kubectl label selector is AND, and RKE2 1.36 dropped the deprecated master label, so it matched zero nodes and aborted preflight against a fully healthy control plane. Now selects control-plane alone, consistent with add_servers_rke2.yml and remove_nodes_rke2.yml. Affects any RKE2 1.36+ cluster, selassie included.</div>
+</article>

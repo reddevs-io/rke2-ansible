@@ -1,0 +1,7 @@
+<link href="journal.css" rel="stylesheet">
+<article class="entry" data-entry-id="945bc291-69c7-446b-a805-c7558c3dac04" data-kind="decision" data-schema-version="2" data-session-id="f1a81eed-d579-498a-b8ee-36704580c6a0" data-target="decisionLog">
+  <time datetime="2026-09-08T17:14:21.968610Z">2026-09-08T17:14:21.968610Z</time>
+  <h3>Added drain_enabled flag to rke2_node_drain for in-place upgrades</h3>
+  <div class="rationale"><strong>Rationale</strong>On a cluster that cannot absorb one node's workload the drain does not degrade gracefully. Evicted pods stay Pending, Pending pods hold their PodDisruptionBudgets at zero allowed disruptions, that blocks the remaining evictions, kubectl drain times out and the playbook aborts leaving the node cordoned and half-drained. The node cannot finish draining until its pods are Ready and they cannot be Ready until it is uncordoned: a deadlock needing manual recovery.</div>
+  <div class="details"><strong>Details</strong>drain_enabled: false skips both cordon and drain so pods restart in place on their own node. Used for umoja fatimah and zenobia after zewditu deadlocked; both completed with zero Pending pods and no intervention. Documented in README under In-Place Upgrades.</div>
+</article>

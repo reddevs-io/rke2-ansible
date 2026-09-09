@@ -1,0 +1,6 @@
+<link href="journal.css" rel="stylesheet">
+<article class="entry" data-entry-id="9fe969f2-b80b-4ace-8d5c-874a58e61888" data-kind="change" data-schema-version="2" data-session-id="f1a81eed-d579-498a-b8ee-36704580c6a0" data-target="activeContext">
+  <time datetime="2026-09-08T22:28:06.996556Z">2026-09-08T22:28:06.996556Z</time>
+  <h3>Resolved MariaDBMultipleWritable on umoja mariadb-khama</h3>
+  <div class="details"><strong>Details</strong>Verified it was NOT a split-brain: all three instances sat at GTID 0-10-12593 with every transaction originating from server_id 10 (khama-0), both replicas had empty gtid_binlog_pos with log_slave_updates=OFF (no replica-originated writes ever), replication was running with 0s lag, and the mariadb-khama-primary Service routed only to khama-0. Exposure window, not divergence. Fix: SET GLOBAL read_only=1 on mariadb-khama-1 and mariadb-khama-2. Verified: read_only OFF/ON/ON, identical schema counts (9/9/9), write on primary replicated to both replicas (0-10-12599), operator CR Ready with PRIMARY=mariadb-khama-0, and the Prometheus alert expression dropped from 3 to 1 with ALERTS empty.</div>
+</article>

@@ -1,0 +1,6 @@
+<link href="journal.css" rel="stylesheet">
+<article class="entry" data-entry-id="daae4a98-ea19-434d-9354-96f4186d4565" data-kind="issue" data-schema-version="2" data-session-id="f1a81eed-d579-498a-b8ee-36704580c6a0" data-target="activeContext">
+  <time datetime="2026-09-08T17:14:22.054714Z">2026-09-08T17:14:22.054714Z</time>
+  <h3>umoja cannot tolerate losing one worker's capacity</h3>
+  <div class="details"><strong>Details</strong>3 workers hold 37.2Gi of memory requests against 45.75Gi allocatable, leaving a 5.38Gi shortfall when any single worker is drained; control planes are tainted CriticalAddonsOnly. Until a 4th worker is added, drain-based maintenance on umoja will deadlock on PDBs and must use drain_enabled=false. Adding a 4th worker would restore normal drain-based upgrades.</div>
+</article>

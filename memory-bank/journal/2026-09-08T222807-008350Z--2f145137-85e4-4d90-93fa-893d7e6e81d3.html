@@ -1,0 +1,6 @@
+<link href="journal.css" rel="stylesheet">
+<article class="entry" data-class="testing" data-entry-id="2f145137-85e4-4d90-93fa-893d7e6e81d3" data-kind="pattern" data-schema-version="2" data-session-id="f1a81eed-d579-498a-b8ee-36704580c6a0" data-target="systemPatterns">
+  <time datetime="2026-09-08T22:28:07.008350Z">2026-09-08T22:28:07.008350Z</time>
+  <h3>read_only does not block SUPER users - do not verify it with root</h3>
+  <div class="details"><strong>Details</strong>While verifying the mariadb-khama fix, CREATE DATABASE as root on read-only replica khama-1 succeeded, because MariaDB read_only=1 exempts SUPER-privileged users (only super_read_only would block them, and MariaDB has no such variable - it is MySQL-only). This wrote a local transaction into the replica binlog (gtid_binlog_pos 0-11-12597) under gtid_strict_mode=ON with autoFailover=true. Remediated by dropping the database with SET SESSION sql_log_bin=0 (no new binlog entry) then STOP SLAVE; RESET MASTER; START SLAVE to clear the stray binlog GTID, which is safe here because log_slave_updates=OFF means the replica binlog holds only local writes and gtid_slave_pos is preserved. Verified restored: binlog_pos empty, slave_pos 0-10-12597 intact, replication healthy. Verify read_only enforcement with a non-SUPER application user, not root.</div>
+</article>

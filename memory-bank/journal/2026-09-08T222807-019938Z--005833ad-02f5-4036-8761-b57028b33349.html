@@ -1,0 +1,6 @@
+<link href="journal.css" rel="stylesheet">
+<article class="entry" data-entry-id="005833ad-02f5-4036-8761-b57028b33349" data-kind="issue" data-schema-version="2" data-session-id="f1a81eed-d579-498a-b8ee-36704580c6a0" data-target="activeContext">
+  <time datetime="2026-09-08T22:28:07.019938Z">2026-09-08T22:28:07.019938Z</time>
+  <h3>openbao sealed after the umoja reboots, blocking all ExternalSecrets</h3>
+  <div class="details"><strong>Details</strong>openbao-0 is 0/1 Running (unready, restarted during the 2026-09-08 node reboots) and ClusterSecretStore openbao reports Ready=False, reason InvalidProviderConfig, message 'unable to create client' since 2026-09-08T17:07:51Z. Every ExternalSecret in mariadb-operator fails with 'ClusterSecretStore openbao is not ready' (mariadb-khama-root-password, mariadb-khama-repl-password, reddevs-blog-prod, fifa-league-prod/staging, pocketpal-staging, uptime-kuma, backblaze-b2). Existing Secrets still hold their last-synced values so running workloads are unaffected, but no secret can rotate until openbao is unsealed. Unrelated to MariaDBMultipleWritable; discovered while triaging it.</div>
+</article>
