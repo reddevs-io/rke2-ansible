@@ -5,8 +5,8 @@
 # host. Destroy or repurpose the machine afterwards with your infrastructure tooling.
 #
 # Usage:
-#   ansible-playbook -i inventory/umoja/hosts.yml remove_nodes_rke2.yml
-#   ansible-playbook -i inventory/umoja/hosts.yml remove_nodes_rke2.yml -e retiring_group=rke2_retiring_agents
+#   ansible-playbook -i inventory/<cluster>/hosts.yml remove_nodes_rke2.yml
+#   ansible-playbook -i inventory/<cluster>/hosts.yml remove_nodes_rke2.yml -e retiring_group=rke2_retiring_agents
 # Optional:
 #   -e "rke2_uninstall=true"      also run rke2-uninstall.sh on the host
 #   -e "min_remaining_servers=3"  refuse to go below this many Ready control planes
