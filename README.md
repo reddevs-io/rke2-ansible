@@ -498,7 +498,7 @@ roles is specific to a cloud provider; provider details (cloud provider name,
 provider ID lookup, private interface) are inventory variables.
 
 It supports clusters that use an external SQL datastore through a local
-[kine](https://github.com/k3s-io/kine) shim (see the umoja inventory): each
+[kine](https://github.com/k3s-io/kine) shim: each
 control plane runs `kine.service` on `127.0.0.1:2379` with a capped connection
 pool, and RKE2 points `datastore-endpoint` at it. Clusters on embedded etcd set
 `rke2_datastore_endpoint: ""` and drop the kine role from the play.
@@ -526,10 +526,10 @@ Optional: `rke2_version` (overrides the version detected from `rke2_servers[0]`)
 
 ```bash
 # secrets in inventory group vars
-ansible-playbook -i inventory/umoja/hosts.yml add_servers_rke2.yml
+ansible-playbook -i inventory/<cluster>/hosts.yml add_servers_rke2.yml
 
 # pin a version explicitly
-ansible-playbook -i inventory/umoja/hosts.yml add_servers_rke2.yml -e rke2_version=v1.36.4+rke2r1
+ansible-playbook -i inventory/<cluster>/hosts.yml add_servers_rke2.yml -e rke2_version=v1.36.4+rke2r1
 ```
 
 ### Execution Flow
@@ -561,7 +561,7 @@ After a successful join, move the host from `rke2_new_servers` to `rke2_servers`
 | `rke2_provider_id` / `rke2_provider_id_command` | Explicit kubelet provider ID, or a command run on the node that prints it |
 | `kine_version`, `kine_max_open_connections`, `kine_max_idle_connections` | kine binary and pool settings |
 
-Example for Hetzner Cloud (from the umoja inventory):
+Example for Hetzner Cloud:
 
 ```yaml
 rke2_private_iface: enp7s0
@@ -583,7 +583,7 @@ The `remove_nodes_rke2.yml` playbook drains and deletes every host in
 5. Optionally runs `rke2-uninstall.sh` (`-e rke2_uninstall=true`)
 
 ```bash
-ansible-playbook -i inventory/umoja/hosts.yml remove_nodes_rke2.yml
+ansible-playbook -i inventory/<cluster>/hosts.yml remove_nodes_rke2.yml
 ```
 
 Destroy or repurpose the machine afterwards with your infrastructure tooling,
