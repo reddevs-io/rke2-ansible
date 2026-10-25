@@ -30,9 +30,6 @@ write-kubeconfig-mode: "{{ rke2_write_kubeconfig_mode }}"
 datastore-endpoint: {{ rke2_datastore_endpoint }}
 {% endif %}
 {% if rke2_datastore_endpoint | length == 0 %}
-{% if rke2_etcd_expose_metrics | bool %}
-etcd-expose-metrics: true
-{% endif %}
 {% if rke2_etcd_snapshot_retention | string | length > 0 %}
 etcd-snapshot-retention: {{ rke2_etcd_snapshot_retention }}
 {% endif %}

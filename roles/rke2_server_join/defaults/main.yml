@@ -32,8 +32,6 @@ rke2_write_kubeconfig_mode: "0644"
 rke2_datastore_endpoint: ""
 
 # Embedded etcd only (ignored with an external datastore).
-# Serve etcd metrics on :2381 for Prometheus.
-rke2_etcd_expose_metrics: false
 # Snapshots kept per node, locally and in S3. Empty keeps the RKE2 default (5).
 rke2_etcd_snapshot_retention: ""
 # Name of a kube-system Secret holding the etcd-s3-* settings. When set, RKE2
