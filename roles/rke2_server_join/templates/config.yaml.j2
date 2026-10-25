@@ -29,6 +29,18 @@ write-kubeconfig-mode: "{{ rke2_write_kubeconfig_mode }}"
 {% if rke2_datastore_endpoint | length > 0 %}
 datastore-endpoint: {{ rke2_datastore_endpoint }}
 {% endif %}
+{% if rke2_datastore_endpoint | length == 0 %}
+{% if rke2_etcd_expose_metrics | bool %}
+etcd-expose-metrics: true
+{% endif %}
+{% if rke2_etcd_snapshot_retention | string | length > 0 %}
+etcd-snapshot-retention: {{ rke2_etcd_snapshot_retention }}
+{% endif %}
+{% if rke2_etcd_s3_config_secret | length > 0 %}
+etcd-s3: true
+etcd-s3-config-secret: {{ rke2_etcd_s3_config_secret }}
+{% endif %}
+{% endif %}
 {% if rke2_cloud_provider_name | length > 0 %}
 cloud-provider-name: {{ rke2_cloud_provider_name }}
 {% endif %}
